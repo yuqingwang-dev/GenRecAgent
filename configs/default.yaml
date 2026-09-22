@@ -1,0 +1,5 @@
+project_name: GenRecAgent
+phase: 0
+max_steps: 8
+log_level: INFO
+

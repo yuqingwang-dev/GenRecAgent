@@ -1,0 +1,5 @@
+backend: mock
+top_k: 5
+embedding_model: ""
+index_path: data/processed/index
+

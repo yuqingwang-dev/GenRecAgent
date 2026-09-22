@@ -1,0 +1,5 @@
+provider: mock
+model_name: ""
+base_url: ""
+temperature: 0.0
+
