@@ -8,9 +8,9 @@ Experiment slot: add trace screenshots or measured smoke-test output here when u
 
 ## Phase 1 — Dataset + Dense Retrieval Baseline
 
-Add an explicitly selected public dataset, preprocessing contracts, embeddings, an index, offline splits, and Recall@K/NDCG@K evaluation.
+Completed on a real 5,000-user All_Beauty development subset with the full item catalog: chronological preprocessing, BGE embeddings, an exact index, and train-only Popularity versus Dense Recall@K/NDCG@K. The full eligible-user population and FAISS backend remain unmeasured.
 
-Experiment slot: dataset version, split policy, and baseline metrics.
+Experiment record: [results_m1.md](results_m1.md) includes dataset/model revisions, split policy, baseline metrics and limits.
 
 ## Phase 2 — Semantic ID
 

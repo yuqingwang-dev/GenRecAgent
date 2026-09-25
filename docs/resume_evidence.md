@@ -4,8 +4,8 @@ Only work with a reproducible artifact and an actual result should become a resu
 
 | Planned claim | Code / command | Current evidence | Status |
 | --- | --- | --- | --- |
-| Chronological Amazon Reviews preparation | `data/amazon.py`, `scripts/prepare_amazon.py` | local Parquet fixture test; no official dataset run | partial |
-| Dense and popularity next-item baselines | `retrieval/dense.py`, `retrieval/popularity.py`, `scripts/evaluate_dense.py` | exact CPU fixture checks; no real metrics | partial |
+| Chronological Amazon Reviews preparation | `data/amazon.py`, `scripts/prepare_amazon.py` | official All_Beauty revision and hashes in `data/processed/All_Beauty/manifest.json`; 5,000-user sample documented in `results_m1.md` | verified on development subset |
+| Dense and popularity next-item baselines | `retrieval/dense.py`, `retrieval/popularity.py`, `scripts/evaluate_dense.py` | real validation/test metrics in `outputs/m1_all_beauty_5000/metrics.json` and summary in `results_m1.md`; code commit `315554b` | verified on development subset |
 | RQ-VAE semantic tokens | M2 training entry point | none | planned |
 | Transformer generative retrieval and fusion | M3 training/evaluation | none | planned |
 | Qwen tool decision and SFT | M4/M5 traces and adapter | none | planned |

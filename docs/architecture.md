@@ -18,7 +18,7 @@ The Phase 0 agent is deterministic:
 
 The control loop does not call an LLM. The LLM interface is isolated so provider-specific code can be introduced later without changing state or tool contracts.
 
-## M1 recommendation path (in progress)
+## M1 recommendation path (real development subset verified)
 
 ```text
 Amazon Reviews 2023 / All_Beauty
@@ -30,6 +30,6 @@ Amazon Reviews 2023 / All_Beauty
   both methods -> same leave-one-out Recall/NDCG evaluator
 ```
 
-The NumPy exact backend has been exercised locally with deterministic vectors. The optional FAISS backend uses `IndexFlatIP`, not an approximate index. Item IDs and metadata are persisted next to the vectors; reloading is checked in a fixture test. The BGE and official Parquet paths are implemented but have not run on real artifacts yet.
+The NumPy exact backend has been exercised with deterministic vectors and the real All_Beauty catalog. The optional FAISS backend uses `IndexFlatIP`, not an approximate index, but was not installed or measured in this run. Item IDs and metadata are persisted next to the vectors; reloading is checked in a fixture test and in the real evaluation. BGE encoding and direct official JSONL/Parquet ingestion ran locally; the real metrics are recorded in [results_m1.md](results_m1.md).
 
 Review timestamps establish within-user order only. The catalog is treated as a static offline universe. Train-only popularity is safe under that protocol, while cross-user global temporal separation and historical catalog availability are not guaranteed. Semantic ID, generative retrieval and learned agent policy remain future components and are not connected to this M1 path.
