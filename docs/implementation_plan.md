@@ -30,7 +30,7 @@ Repository: `F:/AIProjects/GenRecAgent`, branch `main`, commit `f5baee6` at audi
 
 The M1 implementation can be checked on deterministic fixture rows without downloading a model. At verified revision `2b6d039`, the official All_Beauty review file is raw JSONL (about 327 MB) and metadata is Parquet (about 60 MB); a review Parquet path in an older example returns 404. Real metrics require those files and a sentence encoder with its runtime. The code must not report a fixture number as a real experiment. Before the first real run, confirm the download volume, model choice, local cache paths, expected execution scale and whether to run a small real subset. Full M1 acceptance requires a logged real-data run with both baselines under the same protocol.
 
-2026-09-25 update: the user approved the download/runtime work. The 5,000-user real development subset ran on the complete 112,590-item catalog; [results_m1.md](results_m1.md) records both baselines and the exact run. This satisfies the first real-data M1 baseline checkpoint. A run over all 8,151 eligible users and a FAISS-specific path check remain optional extensions, not evidence claimed here.
+2026-09-25 update: the user approved the download/runtime work. The 5,000-user real development subset ran on the complete 112,590-item catalog; [results_m1.md](results_m1.md) records it. The later [full eligible-user run](results_m1_full.md) covered all 8,151 users passing the minimum-three rule, with the same catalog and model. Both runs report Popularity and Dense on validation and test. M1's real-data baseline checkpoint is satisfied. FAISS-specific parity remains unmeasured; NumPy exact search was the measured backend.
 
 ## Protocol decisions to preserve
 

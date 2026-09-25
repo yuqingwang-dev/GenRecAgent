@@ -38,7 +38,7 @@ Implemented and locally verified:
 
 Implemented but not yet verified: optional FAISS IndexFlatIP backend. The exact NumPy backend has been used for the reported M1 result.
 
-Planned: trained RQ-VAE Semantic IDs, trained Transformer generative retrieval, real Qwen tool policy, SFT, and unified ablations. M1's **development-subset real-data baseline is complete**; a full-eligible-user run remains open.
+Planned: trained RQ-VAE Semantic IDs, trained Transformer generative retrieval, real Qwen tool policy, SFT, and unified ablations. M1's **real-data baseline is complete** for both a 5,000-user development subset and all 8,151 eligible users; FAISS-specific backend parity has not been measured.
 
 ## Project Structure
 
@@ -89,7 +89,7 @@ The tested GPU runtime on this machine was `torch==2.6.0+cu124` from the [offici
 
 For M1, `evaluate_dense.py` reports popularity and dense Recall@5/10/20 and NDCG@5/10/20 on validation and test, with one target per user and ranks starting at 1. The same catalog and seen-item policy are used for both methods. Missing targets remain in the denominator and are counted. Retrieval latency includes user pooling and search, excludes model loading, and is machine-specific. The run saves `metrics.json` and `run_config.json` under ignored `outputs/`. Fixture numbers are never reported as real results.
 
-The real 5,000-user development-subset test run (21,465 interactions, seed 42, full 112,590-item catalog, BGE small English v1.5) produced Recall@20 of **0.0086 Popularity** and **0.0368 Dense**; NDCG@20 was **0.00370** and **0.02099** respectively. These are offline next-item results. See [docs/results_m1.md](docs/results_m1.md) for both splits, all K values, hashes, exact model revision, latency scope and limitations.
+The primary full-eligible-user test run (8,151 users, 35,422 interactions, full 112,590-item catalog, BGE small English v1.5) produced Recall@20 of **0.006625 Popularity** and **0.036560 Dense**; NDCG@20 was **0.002784** and **0.021247** respectively. These are offline next-review-item results. See [docs/results_m1_full.md](docs/results_m1_full.md) for both splits, all K values, hashes, exact model revision, latency scope and limitations. The separate 5,000-user development result is in [docs/results_m1.md](docs/results_m1.md).
 
 Agent metrics remain software-level placeholders until a separate reproducible natural-language task set exists. See [docs/implementation_plan.md](docs/implementation_plan.md) for milestones and evidence status.
 

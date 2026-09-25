@@ -8,9 +8,9 @@ Experiment slot: add trace screenshots or measured smoke-test output here when u
 
 ## Phase 1 — Dataset + Dense Retrieval Baseline
 
-Completed on a real 5,000-user All_Beauty development subset with the full item catalog: chronological preprocessing, BGE embeddings, an exact index, and train-only Popularity versus Dense Recall@K/NDCG@K. The full eligible-user population and FAISS backend remain unmeasured.
+Completed on both a real 5,000-user All_Beauty development subset and the full set of 8,151 eligible users, each with the full item catalog: chronological preprocessing, BGE embeddings, an exact index, and train-only Popularity versus Dense Recall@K/NDCG@K. The optional FAISS backend remains unmeasured.
 
-Experiment record: [results_m1.md](results_m1.md) includes dataset/model revisions, split policy, baseline metrics and limits.
+Experiment records: [full eligible-user results](results_m1_full.md) and [development subset results](results_m1.md) include dataset/model revisions, split policy, baseline metrics and limits.
 
 ## Phase 2 — Semantic ID
 
