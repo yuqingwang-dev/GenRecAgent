@@ -36,11 +36,15 @@ def iter_jsonl_rows(path: Path) -> Iterator[dict[str, Any]]:
             yield row
 
 
-def write_jsonl(path: Path, records: Iterable[Record]) -> None:
+def write_jsonl(
+    path: Path, records: Iterable[Record], *, progress_every: int | None = None
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as stream:
-        for record in records:
+        for number, record in enumerate(records, start=1):
             stream.write(json.dumps(record.to_dict(), ensure_ascii=False) + "\n")
+            if progress_every and number % progress_every == 0:
+                print(f"{path.name}: {number} rows written", flush=True)
 
 
 def read_jsonl(path: Path) -> Iterator[dict[str, Any]]:
@@ -62,11 +66,21 @@ def _history(row: Mapping[str, Any]) -> UserHistory:
     )
 
 
-def save_prepared(data: PreparedData, path: Path, manifest: dict[str, Any]) -> None:
+def save_prepared(
+    data: PreparedData,
+    path: Path,
+    manifest: dict[str, Any],
+    *,
+    progress_every: int | None = None,
+) -> None:
     path.mkdir(parents=True, exist_ok=True)
-    write_jsonl(path / "items.jsonl", (data.items[key] for key in sorted(data.items)))
-    write_jsonl(path / "interactions.jsonl", data.interactions)
-    write_jsonl(path / "histories.jsonl", data.histories)
+    write_jsonl(
+        path / "items.jsonl",
+        (data.items[key] for key in sorted(data.items)),
+        progress_every=progress_every,
+    )
+    write_jsonl(path / "interactions.jsonl", data.interactions, progress_every=progress_every)
+    write_jsonl(path / "histories.jsonl", data.histories, progress_every=progress_every)
     (path / "manifest.json").write_text(
         json.dumps({**manifest, "stats": data.stats}, indent=2), encoding="utf-8"
     )

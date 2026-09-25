@@ -106,6 +106,7 @@ def prepare_records(
     min_user_interactions: int = 3,
     max_users: int | None = None,
     seed: int = 42,
+    progress_every: int | None = None,
 ) -> PreparedData:
     if min_user_interactions < 3:
         raise ValueError("leave-last-out requires at least three interactions")
@@ -123,10 +124,14 @@ def prepare_records(
             stats["duplicate_metadata_rows"] += 1
         else:
             items[item.item_id] = item
+        if progress_every and stats["raw_metadata_rows"] % progress_every == 0:
+            print(f"metadata: {stats['raw_metadata_rows']} rows", flush=True)
 
     first_interactions: dict[tuple[str, str], Interaction] = {}
     for index, row in enumerate(review_rows):
         stats["raw_review_rows"] += 1
+        if progress_every and stats["raw_review_rows"] % progress_every == 0:
+            print(f"reviews: {stats['raw_review_rows']} rows", flush=True)
         interaction = normalize_interaction(row, index)
         if interaction is None:
             stats["invalid_review_rows"] += 1
@@ -144,14 +149,20 @@ def prepare_records(
         ):
             first_interactions[key] = interaction
 
+    user_counts = Counter(interaction.user_id for interaction in first_interactions.values())
+    candidate_users = {
+        user_id
+        for user_id, count in user_counts.items()
+        if count >= min_user_interactions
+    }
+    stats["users_below_min_interactions"] = len(user_counts) - len(candidate_users)
     by_user: dict[str, list[Interaction]] = defaultdict(list)
     for interaction in first_interactions.values():
-        by_user[interaction.user_id].append(interaction)
+        if interaction.user_id in candidate_users:
+            by_user[interaction.user_id].append(interaction)
+    del first_interactions, user_counts, candidate_users
     eligible: dict[str, list[Interaction]] = {}
     for user_id, sequence in by_user.items():
-        if len(sequence) < min_user_interactions:
-            stats["users_below_min_interactions"] += 1
-            continue
         sequence.sort(key=lambda row: (row.timestamp, row.source_index))
         stats["equal_timestamp_adjacent_pairs"] += sum(
             first.timestamp == second.timestamp

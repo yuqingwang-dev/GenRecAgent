@@ -123,6 +123,7 @@ def main() -> None:
         min_user_interactions=args.min_user_interactions,
         max_users=args.max_users,
         seed=args.seed,
+        progress_every=100_000,
     )
     manifest = {
         "dataset": DATASET,
@@ -138,7 +139,8 @@ def main() -> None:
         "mode": "development_subset" if args.max_users else "full",
         "elapsed_seconds": round(perf_counter() - started, 3),
     }
-    save_prepared(data, args.output_dir, manifest)
+    print("Saving prepared records", flush=True)
+    save_prepared(data, args.output_dir, manifest, progress_every=25_000)
     print(json.dumps(data.stats, indent=2))
     print(f"Output: {args.output_dir}; elapsed: {perf_counter() - started:.2f}s")
 
