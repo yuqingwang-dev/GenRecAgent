@@ -1,0 +1,14 @@
+# Resume evidence ledger
+
+Only work with a reproducible artifact and an actual result should become a resume claim.
+
+| Planned claim | Code / command | Current evidence | Status |
+| --- | --- | --- | --- |
+| Chronological Amazon Reviews preparation | `data/amazon.py`, `scripts/prepare_amazon.py` | local Parquet fixture test; no official dataset run | partial |
+| Dense and popularity next-item baselines | `retrieval/dense.py`, `retrieval/popularity.py`, `scripts/evaluate_dense.py` | exact CPU fixture checks; no real metrics | partial |
+| RQ-VAE semantic tokens | M2 training entry point | none | planned |
+| Transformer generative retrieval and fusion | M3 training/evaluation | none | planned |
+| Qwen tool decision and SFT | M4/M5 traces and adapter | none | planned |
+| Constraint-aware agent and ablations | M4/M6 task set and metrics | Phase 0 mock only | planned |
+
+The M1 data pipeline and exact retrieval code are project implementations. BGE, Sentence Transformers, FAISS, NumPy and the Amazon dataset are external components; using them is not an original algorithm claim. Add model/data licenses and version evidence before any public release of derived artifacts.

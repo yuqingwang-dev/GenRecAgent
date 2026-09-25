@@ -1,3 +1,5 @@
-# Phase 0 intentionally has no runtime dependency beyond Python 3.11.
-# Add model/vector-store dependencies only when their corresponding phase lands.
-
+numpy>=1.26,<3
+PyYAML>=6,<7
+pyarrow>=18,<25
+huggingface-hub>=0.30,<2
+# M1 preparation, exact NumPy retrieval, and evaluation dependencies.

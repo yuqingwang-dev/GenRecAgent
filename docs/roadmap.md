@@ -38,7 +38,7 @@ Experiment slot: task success, constraint satisfaction, and recovery rate.
 
 ## Phase 6 — Agent Post-training
 
-Collect trajectories, add supervised fine-tuning, and evaluate optional reinforcement learning only after a stable offline evaluator exists.
+Collect verified trajectories and add supervised fine-tuning only after a stable offline evaluator exists. Reinforcement learning is outside the current project scope.
 
 Experiment slot: training data version, policy changes, and safety checks.
 
@@ -47,4 +47,3 @@ Experiment slot: training data version, policy changes, and safety checks.
 Run reproducible comparisons across retrieval strategies, routing policies, verifier settings, and re-planning budgets.
 
 Experiment slot: final tables, confidence intervals, and failure analysis.
-

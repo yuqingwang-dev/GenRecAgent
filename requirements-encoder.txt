@@ -1,0 +1,4 @@
+-r requirements.txt
+sentence-transformers>=3,<6
+# Optional exact IP accelerator on compatible Windows builds: faiss-cpu.
+# The NumPy backend has identical cosine/IP semantics and remains the default.
