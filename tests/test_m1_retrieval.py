@@ -48,6 +48,13 @@ def test_save_load_preserves_item_mapping_and_results(tmp_path) -> None:
     assert loaded.metadata["normalization"] == "l2"
 
 
+def test_exact_search_breaks_score_ties_by_item_id() -> None:
+    index = DenseRetriever()
+    index.build_index(["Z", "A", "Y", "B"], np.ones((4, 2), dtype=np.float32))
+    hits = index.search(np.array([1, 1], dtype=np.float32), top_k=2, exclude_seen_items={"A"})
+    assert [hit.item_id for hit in hits] == ["B", "Y"]
+
+
 def test_popularity_uses_train_only_and_evaluation_histories() -> None:
     history = _history()
     popularity = PopularityRetriever([history], ["A", "B", "C", "D", "E"])

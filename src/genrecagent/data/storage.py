@@ -23,6 +23,19 @@ def iter_parquet_rows(path: Path, columns: list[str]) -> Iterator[dict[str, Any]
         yield from batch.to_pylist()
 
 
+def iter_jsonl_rows(path: Path) -> Iterator[dict[str, Any]]:
+    """Stream one official JSON object per line without loading remote code."""
+
+    with path.open(encoding="utf-8") as stream:
+        for number, line in enumerate(stream, start=1):
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if not isinstance(row, dict):
+                raise ValueError(f"Expected JSON object at {path}:{number}")
+            yield row
+
+
 def write_jsonl(path: Path, records: Iterable[Record]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as stream:

@@ -58,6 +58,7 @@ def build_catalog_index(
             "review_sha256": dataset_manifest.get("review_sha256"),
             "metadata_sha256": dataset_manifest.get("metadata_sha256"),
             "model_name": encoder.model_name,
+            "model_revision": getattr(encoder, "revision", None),
             "device": encoder.device,
             "batch_size": batch_size,
             "catalog_sampling": "full" if max_items is None else "SHA256(seed:item_id)",
@@ -101,6 +102,7 @@ def main() -> None:
         cache_dir=ROOT / encoder_config["cache_dir"],
         device=args.device or encoder_config["device"],
         allow_download=args.allow_model_download,
+        revision=encoder_config.get("revision"),
     )
     index = build_catalog_index(
         prepared,

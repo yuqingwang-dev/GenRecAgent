@@ -2,10 +2,12 @@
 
 import argparse
 import json
+import os
 import platform
 import subprocess
 import sys
 from datetime import UTC, datetime
+from importlib.metadata import version
 from pathlib import Path
 from time import perf_counter
 
@@ -43,21 +45,41 @@ def main() -> None:
     splits = ("validation", "test") if args.split == "both" else (args.split,)
     results = {
         split: evaluate_baselines(
-            histories, retriever, split=split, k_values=config["evaluation"]["k_values"]
+            histories,
+            retriever,
+            split=split,
+            k_values=config["evaluation"]["k_values"],
+            progress_every=500,
         )
         for split in splits
     }
     commit = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=False
     ).stdout.strip()
+    dirty = bool(
+        subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        ).stdout.strip()
+    )
     run_config = {
         "dataset_manifest": dataset_manifest,
         "index_metadata": retriever.metadata,
         "evaluation": config["evaluation"],
         "command": "python scripts/evaluate_dense.py",
         "git_commit": commit,
+        "git_dirty": dirty,
         "python": sys.version,
         "platform": platform.platform(),
+        "logical_cpu_count": os.cpu_count(),
+        "package_versions": {
+            package: version(package)
+            for package in ("numpy", "pyarrow", "torch", "sentence-transformers")
+        },
+        "openblas_num_threads": os.getenv("OPENBLAS_NUM_THREADS"),
         "created_utc": datetime.now(UTC).isoformat(),
         "elapsed_seconds": round(perf_counter() - started, 3),
         "latency_scope": "user pooling plus exact search; excludes loading and embedding model",

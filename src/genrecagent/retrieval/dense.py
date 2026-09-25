@@ -30,6 +30,7 @@ class DenseRetriever:
         self.backend = backend
         self.item_ids: list[str] = []
         self.item_to_index: dict[str, int] = {}
+        self._id_array = np.empty(0, dtype=str)
         self.embeddings = np.empty((0, 0), dtype=np.float32)
         self._index: Any = None
         self.metadata: dict[str, Any] = {}
@@ -48,6 +49,7 @@ class DenseRetriever:
             raise ValueError("Item IDs must be unique and embeddings finite")
         self.item_ids = list(item_ids)
         self.item_to_index = {item_id: index for index, item_id in enumerate(item_ids)}
+        self._id_array = np.asarray(item_ids)
         self.embeddings = normalize_rows(matrix)
         if np.any(np.linalg.norm(self.embeddings, axis=1) == 0):
             raise ValueError("Zero item embeddings cannot support cosine retrieval")
@@ -126,9 +128,24 @@ class DenseRetriever:
             ]
         else:
             scores = self.embeddings @ vector
+            for item_id in seen:
+                index = self.item_to_index.get(item_id)
+                if index is not None:
+                    scores[index] = -np.inf
+            eligible_count = len(self.item_ids) - len(seen & self.item_to_index.keys())
+            count = min(top_k, eligible_count)
+            if count == 0:
+                return []
+            if count < len(scores):
+                partition = np.argpartition(scores, -count)[-count:]
+                threshold = scores[partition].min()
+                candidates = np.flatnonzero(scores >= threshold)
+            else:
+                candidates = np.flatnonzero(np.isfinite(scores))
+            ranked = candidates[np.lexsort((self._id_array[candidates], -scores[candidates]))]
             ordered = [
                 (int(index), float(scores[index]))
-                for index in np.lexsort((np.asarray(self.item_ids), -scores))
+                for index in ranked[:count]
             ]
         hits: list[SearchHit] = []
         for index, score in ordered:

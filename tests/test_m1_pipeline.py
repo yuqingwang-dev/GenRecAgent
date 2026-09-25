@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
+import pytest
 from scripts.build_index import build_catalog_index
 
 from genrecagent.data.storage import load_histories
@@ -32,10 +33,11 @@ class FakeEncoder:
         )
 
 
-def test_local_parquet_prepare_and_cpu_baselines(tmp_path: Path) -> None:
+@pytest.mark.parametrize("review_format", ["parquet", "jsonl"])
+def test_local_prepare_and_cpu_baselines(tmp_path: Path, review_format: str) -> None:
     root = Path(__file__).resolve().parents[1]
     metadata_file = tmp_path / "metadata.parquet"
-    review_file = tmp_path / "reviews.parquet"
+    review_file = tmp_path / f"reviews.{review_format}"
     metadata = [
         {
             "parent_asin": key,
@@ -61,7 +63,12 @@ def test_local_parquet_prepare_and_cpu_baselines(tmp_path: Path) -> None:
         for key, time in (("A", 10), ("B", 20), ("C", 30), ("D", 40))
     ]
     pq.write_table(pa.Table.from_pylist(metadata), metadata_file)
-    pq.write_table(pa.Table.from_pylist(reviews), review_file)
+    if review_format == "parquet":
+        pq.write_table(pa.Table.from_pylist(reviews), review_file)
+    else:
+        review_file.write_text(
+            "\n".join(json.dumps(row) for row in reviews) + "\n", encoding="utf-8"
+        )
     output = tmp_path / "prepared"
     run = subprocess.run(
         [
@@ -80,6 +87,7 @@ def test_local_parquet_prepare_and_cpu_baselines(tmp_path: Path) -> None:
     assert '"users": 2' in run.stdout
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["source_kind"] == "synthetic_fixture"
+    assert manifest["review_format"] == f".{review_format}"
     assert manifest["stats"]["users"] == 2
     assert manifest["stats"]["train_interactions"] == 4
     histories = load_histories(output)

@@ -17,6 +17,7 @@ def evaluate_baselines(
     *,
     split: Literal["validation", "test"],
     k_values: Sequence[int] = (5, 10, 20),
+    progress_every: int | None = None,
 ) -> dict[str, Any]:
     if not k_values or min(k_values) <= 0:
         raise ValueError("k_values must be positive")
@@ -31,7 +32,7 @@ def evaluate_baselines(
     unreachable = 0
     target_in_history = 0
     max_k = max(k_values)
-    for user in histories:
+    for user_number, user in enumerate(histories, start=1):
         history = user.validation_history if split == "validation" else user.test_history
         target = user.validation_item if split == "validation" else user.test_item
         seen = set(history)
@@ -59,6 +60,8 @@ def evaluate_baselines(
                 accumulators[method]["ndcg"][f"NDCG@{k}"].append(
                     ndcg_at_k(predicted, {target}, k)
                 )
+        if progress_every and user_number % progress_every == 0:
+            print(f"{split}: evaluated {user_number}/{len(histories)} users", flush=True)
 
     result: dict[str, Any] = {
         "split": split,

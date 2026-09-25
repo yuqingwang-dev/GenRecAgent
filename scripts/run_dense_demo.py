@@ -32,6 +32,7 @@ def main() -> None:
         cache_dir=ROOT / config["encoder"]["cache_dir"],
         device=config["encoder"]["device"],
         allow_download=args.allow_model_download,
+        revision=index.metadata.get("model_revision"),
     )
     vector = encoder.encode([args.query], batch_size=1)[0]
     hits = index.search(vector, top_k=args.top_k)

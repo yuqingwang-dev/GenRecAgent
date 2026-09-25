@@ -28,7 +28,7 @@ Repository: `F:/AIProjects/GenRecAgent`, branch `main`, commit `f5baee6` at audi
 
 ## M1 acceptance and pause point
 
-The M1 implementation can be checked on deterministic fixture rows without downloading a model. Real All_Beauty metrics require the two official Parquet shards (roughly 139 MB of reviews and 60 MB of metadata, before cache/processed copies), `pyarrow` and a sentence encoder with its runtime. The code must not report a fixture number as a real experiment. Before the first real run, confirm the download volume, model choice, local cache paths, expected execution scale and whether to run a small real subset. Full M1 acceptance requires a logged real-data run with both baselines under the same protocol.
+The M1 implementation can be checked on deterministic fixture rows without downloading a model. At verified revision `2b6d039`, the official All_Beauty review file is raw JSONL (about 327 MB) and metadata is Parquet (about 60 MB); a review Parquet path in an older example returns 404. Real metrics require those files and a sentence encoder with its runtime. The code must not report a fixture number as a real experiment. Before the first real run, confirm the download volume, model choice, local cache paths, expected execution scale and whether to run a small real subset. Full M1 acceptance requires a logged real-data run with both baselines under the same protocol.
 
 ## Protocol decisions to preserve
 
@@ -40,4 +40,4 @@ The M1 implementation can be checked on deterministic fixture rows without downl
 - Per-user leave-last-out does not enforce global time separation across users. A train event from one user can be later than another user's test event. This limitation must accompany all reported results.
 - A development subset samples users with a fixed seed independently of target hit outcomes. Any item cap must be selected independently of validation/test targets and must report unreachable targets. Full catalog evaluation is the default when no cap is supplied.
 
-Sources: [Amazon Reviews 2023 dataset card](https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023) and its [All_Beauty review Parquet](https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/tree/main/raw_review_All_Beauty) and [metadata Parquet](https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/tree/main/raw_meta_All_Beauty). The Parquet path avoids executing the repository's remote dataset loader script.
+Sources: [Amazon Reviews 2023 dataset card](https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023), its [All_Beauty review JSONL](https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/tree/main/raw/review_categories), and [metadata Parquet](https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/tree/main/raw_meta_All_Beauty). Direct file loading avoids executing the repository's remote dataset loader script.

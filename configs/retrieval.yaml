@@ -1,13 +1,14 @@
 dataset:
   name: McAuley-Lab/Amazon-Reviews-2023
   category: All_Beauty
-  revision: main
+  revision: 2b6d039ed471f2ba5fd2acb718bf33b0a7e5598e
   min_user_interactions: 3
   max_users: null
   seed: 42
   prepared_path: data/processed/All_Beauty
 encoder:
   model_name: BAAI/bge-small-en-v1.5
+  revision: 5c38ec7c405ec4b44b94cc5a9bb96e735b38267a
   batch_size: 32
   normalize_embeddings: true
   device: auto

@@ -40,6 +40,7 @@ class SentenceItemEncoder:
         cache_dir: Path,
         device: str = "auto",
         allow_download: bool = False,
+        revision: str | None = None,
     ) -> None:
         try:
             from sentence_transformers import SentenceTransformer
@@ -65,7 +66,11 @@ class SentenceItemEncoder:
             cache_folder=str(cache_dir),
             local_files_only=not allow_download,
             trust_remote_code=False,
+            revision=revision,
         )
+        self.revision = getattr(self.model[0].auto_model.config, "_commit_hash", None)
+        if revision and self.revision != revision:
+            raise RuntimeError("Loaded model revision does not match the configured revision")
 
     def encode(self, texts: list[str], batch_size: int) -> np.ndarray:
         if batch_size < 1:
