@@ -63,8 +63,16 @@ class SemanticCodeTrie:
         beam: list[tuple[SemanticID, float]] = [((), 0.0)]
         for _ in range(self.depth):
             expansions: list[tuple[SemanticID, float]] = []
-            for prefix, cumulative in beam:
-                log_probs = scorer.log_probabilities(history, prefix)
+            batch_method = getattr(scorer, "log_probabilities_batch", None)
+            if callable(batch_method):
+                score_maps = batch_method(history, tuple(prefix for prefix, _ in beam))
+                if len(score_maps) != len(beam):
+                    raise ValueError("Batched scorer returned a different number of prefixes")
+            else:
+                score_maps = [
+                    scorer.log_probabilities(history, prefix) for prefix, _ in beam
+                ]
+            for (prefix, cumulative), log_probs in zip(beam, score_maps, strict=True):
                 for token in self.allowed_next(prefix):
                     score = log_probs.get(token, -math.inf)
                     if math.isfinite(score):
