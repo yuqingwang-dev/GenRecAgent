@@ -16,4 +16,8 @@ The full eligible-user test result was Recall@20 = 0.006625 for Popularity and 0
 
 ## What is actually implemented?
 
-The local data normalization, split, NumPy exact index, history pooling, popularity counter and evaluation protocol are project code. Sentence Transformers and optional FAISS are library calls. BGE is an external pretrained encoder. RQ-VAE, Transformer generation and tool-policy SFT are not yet trained or evaluated.
+The local data normalization, split, NumPy exact index, history pooling, popularity counter and evaluation protocol are project code. Sentence Transformers and optional FAISS are library calls. BGE is an external pretrained encoder. The RQ-VAE implementation is project code and has only undergone a small CPU smoke run. Transformer generation and tool-policy SFT are not yet trained or evaluated.
+
+## What did the first RQ-VAE smoke run show?
+
+Random codebook initialization collapsed both 16-entry levels to one used code, placing all 128 items in one collision group. Seeding codebooks from train-only latents increased usage to 9/16 and 10/16, yet 119 of 128 items still shared codes with another item. The mapping retains every colliding item and does not infer the right one from a held-out target. The smoke configuration has two levels and tiny codebooks; it cannot establish the behavior of the planned three-level full-catalog run.

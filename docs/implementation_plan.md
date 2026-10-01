@@ -32,6 +32,8 @@ The M1 implementation can be checked on deterministic fixture rows without downl
 
 2026-09-25 update: the user approved the download/runtime work. The 5,000-user real development subset ran on the complete 112,590-item catalog; [results_m1.md](results_m1.md) records it. The later [full eligible-user run](results_m1_full.md) covered all 8,151 users passing the minimum-three rule, with the same catalog and model. Both runs report Popularity and Dense on validation and test. M1's real-data baseline checkpoint is satisfied. FAISS-specific parity remains unmeasured; NumPy exact search was the measured backend.
 
+2026-10-01 update: M2 RQ-VAE and collision-aware mapping code is implemented and tested on a 128-item CPU smoke run. Full-catalog training and its validity checks await approval; see [m2_training_plan.md](m2_training_plan.md). No generative retrieval or recommendation gain is claimed from the smoke result.
+
 ## Protocol decisions to preserve
 
 - Reviews are observed interactions, not proof of purchase. `verified_purchase` remains a data field, not a prerequisite for inclusion.

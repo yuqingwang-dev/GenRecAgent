@@ -1,0 +1,17 @@
+source:
+  index_path: data/processed/All_Beauty/index
+  output_path: outputs/m2_rqvae
+model:
+  hidden_dim: 256
+  latent_dim: 64
+  num_levels: 3
+  codebook_size: 256
+  commitment_weight: 0.25
+training:
+  epochs: 20
+  batch_size: 512
+  learning_rate: 0.001
+  validation_fraction: 0.1
+  seed: 42
+  device: auto
+  init_samples: 4096

@@ -1,6 +1,6 @@
 # GenRecAgent
 
-GenRecAgent is a research project for personalized e-commerce recommendation with planned dense and generative retrieval plus a tool-using agent. The current repository contains a Phase 0 mock agent and a real-data M1 Popularity/Dense baseline on a documented All_Beauty development subset.
+GenRecAgent is a research project for personalized e-commerce recommendation with planned dense and generative retrieval plus a tool-using agent. The repository contains a Phase 0 mock agent, a real-data M1 Popularity/Dense baseline, and an M2 RQ-VAE training pipeline verified only by a small CPU smoke run.
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
@@ -35,10 +35,11 @@ Implemented and locally verified:
 - tests and lint configuration
 - M1 typed review/item data handling, chronological leave-last-out, and deterministic user sampling on both local fixtures and official All_Beauty data
 - BGE-encoded full item catalog, NumPy exact cosine/IP retrieval, saved item mapping, train-only popularity, and validation/test evaluation on a 5,000-user real-data subset
+- M2 RQ-VAE forward/backward path, train-only codebook initialization, checkpointing, item Semantic ID mapping, and collision/usage measurement on 128 real item vectors in a two-epoch CPU smoke run
 
-Implemented but not yet verified: optional FAISS IndexFlatIP backend. The exact NumPy backend has been used for the reported M1 result.
+Implemented but not yet verified at intended scale: full 112,590-item RQ-VAE training. The optional FAISS IndexFlatIP backend has not been measured; the M1 result used exact NumPy search.
 
-Planned: trained RQ-VAE Semantic IDs, trained Transformer generative retrieval, real Qwen tool policy, SFT, and unified ablations. M1's **real-data baseline is complete** for both a 5,000-user development subset and all 8,151 eligible users; FAISS-specific backend parity has not been measured.
+Planned: full-catalog trained RQ-VAE Semantic IDs, trained Transformer generative retrieval, real Qwen tool policy, SFT, and unified ablations. M1's **real-data baseline is complete** for both a 5,000-user development subset and all 8,151 eligible users. M2 is **in progress**; smoke-test tokens are not reported as a usable trained catalog codebook.
 
 ## Project Structure
 
@@ -48,7 +49,7 @@ data/                    Ignored raw/processed data directories
 docs/                    Architecture and roadmap notes
 scripts/                 Safe local demo and future experiment entry points
 src/genrecagent/         Package code
-tests/                   Phase 0 and M1 unit/integration tests
+tests/                   Phase 0 through M2 unit/integration tests
 outputs/                 Ignored experiment records
 artifacts/               Ignored local model cache
 ```
@@ -90,6 +91,18 @@ The tested GPU runtime on this machine was `torch==2.6.0+cu124` from the [offici
 For M1, `evaluate_dense.py` reports popularity and dense Recall@5/10/20 and NDCG@5/10/20 on validation and test, with one target per user and ranks starting at 1. The same catalog and seen-item policy are used for both methods. Missing targets remain in the denominator and are counted. Retrieval latency includes user pooling and search, excludes model loading, and is machine-specific. The run saves `metrics.json` and `run_config.json` under ignored `outputs/`. Fixture numbers are never reported as real results.
 
 The primary full-eligible-user test run (8,151 users, 35,422 interactions, full 112,590-item catalog, BGE small English v1.5) produced Recall@20 of **0.006625 Popularity** and **0.036560 Dense**; NDCG@20 was **0.002784** and **0.021247** respectively. These are offline next-review-item results. See [docs/results_m1_full.md](docs/results_m1_full.md) for both splits, all K values, hashes, exact model revision, latency scope and limitations. The separate 5,000-user development result is in [docs/results_m1.md](docs/results_m1.md).
+
+## M2 Semantic ID training (in progress)
+
+`scripts/train_rqvae.py` reads the saved M1 item embeddings, splits items by a fixed seed for reconstruction training/validation, trains a residual-quantized autoencoder, selects the checkpoint by validation reconstruction MSE, and saves learned codebooks, an item-to-token mapping, usage and collision statistics. A code maps to **all** colliding catalog items; it is not silently resolved using held-out targets.
+
+The CPU smoke command below trains only 128 items for two epochs and is a software check:
+
+```powershell
+python scripts/train_rqvae.py --smoke-test --max-items 128 --epochs 2 --batch-size 32 --hidden-dim 64 --latent-dim 16 --num-levels 2 --codebook-size 16 --device cpu --output-dir outputs/m2_cpu_smoke_new
+```
+
+This smoke run initially revealed codebook collapse; train-only latent initialization increased code usage but still left substantial collisions. No full-catalog RQ-VAE training or M2 recommendation metric is claimed. The proposed full run, resource estimate and acceptance checks are in [docs/m2_training_plan.md](docs/m2_training_plan.md).
 
 Agent metrics remain software-level placeholders until a separate reproducible natural-language task set exists. See [docs/implementation_plan.md](docs/implementation_plan.md) for milestones and evidence status.
 

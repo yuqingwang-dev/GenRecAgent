@@ -14,9 +14,9 @@ Experiment records: [full eligible-user results](results_m1_full.md) and [develo
 
 ## Phase 2 — Semantic ID
 
-Implement item semantic tokenization with RQ-KMeans or RQ-VAE, codebook persistence, collision analysis, and compatibility with the retrieval tool interface.
+RQ-VAE training, codebook persistence and collision-aware item mapping are implemented; a 128-item CPU smoke run verified the pipeline. Full-catalog training and evaluation await resource approval. RQ-KMeans is not claimed as an implemented baseline.
 
-Experiment slot: codebook settings, token statistics, and ablations.
+Experiment plan and smoke diagnostics: [m2_training_plan.md](m2_training_plan.md). Full-run codebook settings, reconstruction, utilization and collision statistics remain pending.
 
 ## Phase 3 — Generative Retrieval
 

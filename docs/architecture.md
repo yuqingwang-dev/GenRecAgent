@@ -32,4 +32,14 @@ Amazon Reviews 2023 / All_Beauty
 
 The NumPy exact backend has been exercised with deterministic vectors and the real All_Beauty catalog. The optional FAISS backend uses `IndexFlatIP`, not an approximate index, but was not installed or measured in this run. Item IDs and metadata are persisted next to the vectors; reloading is checked in a fixture test and in the real evaluation. BGE encoding and direct official JSONL/Parquet ingestion ran locally; the primary real metrics are recorded in [results_m1_full.md](results_m1_full.md), with a separate development subset in [results_m1.md](results_m1.md).
 
-Review timestamps establish within-user order only. The catalog is treated as a static offline universe. Train-only popularity is safe under that protocol, while cross-user global temporal separation and historical catalog availability are not guaranteed. Semantic ID, generative retrieval and learned agent policy remain future components and are not connected to this M1 path.
+Review timestamps establish within-user order only. The catalog is treated as a static offline universe. Train-only popularity is safe under that protocol, while cross-user global temporal separation and historical catalog availability are not guaranteed. Semantic ID training is now a separate M2 path; generative retrieval and learned agent policy remain future components and are not connected to this M1 path.
+
+## M2 item Semantic ID path (CPU smoke verified)
+
+```text
+M1 normalized item vectors -> MLP encoder -> residual quantization (learned levels)
+                                                -> MLP decoder -> reconstruction loss
+                           -> trained code sequence -> catalog item mapping
+```
+
+The quantizer's nearest-code choice is discrete. Straight-through gradients train the encoder through the decoder while a codebook loss and commitment loss update the latent space and selected learned codes. Codebooks are initialized from train-only item latents. A fixed item-level validation subset selects the checkpoint by reconstruction error; the user-sequence test targets are not used. The mapping preserves all item IDs sharing a code. This pipeline has only a small CPU smoke run so far; full-catalog code usage and collisions remain to be measured.
