@@ -41,7 +41,7 @@ Implemented and locally verified:
 
 Implemented but not yet verified: optional FAISS IndexFlatIP backend. The M1 result used exact NumPy search.
 
-Planned: trained Transformer generative retrieval, real Qwen tool policy, SFT, and unified ablations. M1's real-data baseline is complete for both a 5,000-user development subset and all 8,151 eligible users. M2 has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet. M3 training and recommendation metrics have not run.
+Planned: full-trained Transformer generative retrieval, real Qwen tool policy, SFT, and unified ablations. M1's real-data baseline is complete for both a 5,000-user development subset and all 8,151 eligible users. M2 has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet. M3 has a measured count-transition baseline; full Transformer training and recommendation metrics remain pending.
 
 ## Project Structure
 
@@ -108,7 +108,9 @@ The later full-catalog RQ-VAE run confirmed severe codebook collapse despite a v
 
 ## M3 Generative Retrieval foundation (model pending)
 
-`python scripts/prepare_m3_sequences.py` prepares user-history-to-next-code examples using only train-period prefixes for supervised training. On the full eligible-user data it produces **10,969 train**, **8,151 validation** and **8,151 test** examples. The valid-code trie masks impossible token paths; the candidate adapter expands colliding codes, filters seen items and uses train-only popularity for deterministic within-code ordering. No sequence model has been trained and no generative Recall/NDCG is reported. See [docs/m3_protocol.md](docs/m3_protocol.md) for exact split, scoring and collision rules.
+`python scripts/prepare_m3_sequences.py` prepares user-history-to-next-code examples using only train-period prefixes for supervised training. On the full eligible-user data it produces **10,969 train**, **8,151 validation** and **8,151 test** examples. The valid-code trie masks impossible token paths; the candidate adapter expands colliding codes, filters seen items and uses train-only popularity for deterministic within-code ordering. The count-based sequence baseline has measured Recall/NDCG; no full Transformer model result is reported. See [docs/m3_protocol.md](docs/m3_protocol.md) for exact split, scoring and collision rules.
+
+The train-only code-transition baseline has now run on all 8,151 validation and test users. Test Recall@20 was **0.007852**, below Dense **0.036560** under the same item universe; all code paths were valid. See [docs/results_m3_transition.md](docs/results_m3_transition.md) for all K values and diagnostics. A small causal Transformer, target-only loss, checkpointing and batched trie scorer are implemented, but only a 128/32-example CPU smoke run has trained it. Full training/evaluation remain pending; see [docs/m3_transformer_plan.md](docs/m3_transformer_plan.md).
 
 Agent metrics remain software-level placeholders until a separate reproducible natural-language task set exists. See [docs/implementation_plan.md](docs/implementation_plan.md) for milestones and evidence status.
 

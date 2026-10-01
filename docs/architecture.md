@@ -34,7 +34,7 @@ The NumPy exact backend has been exercised with deterministic vectors and the re
 
 Review timestamps establish within-user order only. The catalog is treated as a static offline universe. Train-only popularity is safe under that protocol, while cross-user global temporal separation and historical catalog availability are not guaranteed. Semantic ID training is now a separate M2 path; generative retrieval and learned agent policy remain future components and are not connected to this M1 path.
 
-## M2 item Semantic ID path (CPU smoke verified)
+## M2 item Semantic ID path (full-catalog comparison verified)
 
 ```text
 M1 normalized item vectors -> MLP encoder -> residual quantization (learned levels)
@@ -48,4 +48,6 @@ The subsequent full-catalog RQ-VAE run showed severe codebook collapse. M2 now a
 
 ## M3 sequence and candidate boundary (no trained generator)
 
-Chronological train histories become prefix-to-next-item-code examples; validation uses train history, and test uses train plus the observed validation interaction. A `NextTokenScorer` will provide global-vocabulary log-probabilities to a catalog-valid code trie. The current `GenerativeRetriever` is only the decoder/adapter: it expands valid codes through all colliding catalog items, orders within groups by train-only popularity, excludes seen items and emits source-labeled candidates with diagnostic counters. The scorer is still unimplemented by a trained model; [m3_protocol.md](m3_protocol.md) records the exact contract and leakage boundaries.
+Chronological train histories become prefix-to-next-item-code examples; validation uses train history, and test uses train plus the observed validation interaction. A `NextTokenScorer` supplies log-probabilities to a catalog-valid code trie. `GenerativeRetriever` expands valid codes through all colliding catalog items, orders within groups by train-only popularity, excludes seen items and emits source-labeled candidates with diagnostic counters. The count scorer is train-fitted; the Transformer scorer has only CPU-smoke training. [m3_protocol.md](m3_protocol.md) records the exact contract and leakage boundaries.
+
+Two scorer implementations now exist: a train-only count transition baseline (full validation/test results in [results_m3_transition.md](results_m3_transition.md)), and a small causal Transformer with only a CPU smoke checkpoint. For Transformer teacher forcing, history tokens and padding have no supervised loss; a prediction marker and preceding target tokens predict exactly the next item's three Semantic ID tokens. A causal attention mask prevents future-target access. At inference a batched scorer supplies log-probabilities for each beam prefix; the same catalog trie restricts outputs to valid codes. Full Transformer training and recommendation evaluation remain pending.

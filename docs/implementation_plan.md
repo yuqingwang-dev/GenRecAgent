@@ -38,6 +38,8 @@ Later 2026-10-01 update: the laboratory full-catalog RQ-VAE run was received and
 
 M3 foundation update: 10,969 train-only user-history prefixes, 8,151 validation examples and 8,151 test examples are prepared from the full eligible-user set. Catalog-valid code decoding and target-independent collision expansion are implemented and tested, but the scorer is not backed by a trained Transformer. [m3_protocol.md](m3_protocol.md) defines the training/evaluation boundary and next acceptance gate.
 
+M3 next-step update: the train-only code-transition scorer was fitted and evaluated on all validation/test users with fixed settings; its test Recall@20 was 0.007852 versus the M1 Dense 0.036560. A 473,731-parameter causal Transformer training/adapter and shared evaluator are implemented and passed small CPU smoke tests; full training has not run. See [results_m3_transition.md](results_m3_transition.md) and [m3_transformer_plan.md](m3_transformer_plan.md).
+
 ## Protocol decisions to preserve
 
 - Reviews are observed interactions, not proof of purchase. `verified_purchase` remains a data field, not a prerequisite for inclusion.

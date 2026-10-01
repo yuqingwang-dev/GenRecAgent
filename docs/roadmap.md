@@ -20,9 +20,9 @@ Original plan and smoke diagnostics: [m2_training_plan.md](m2_training_plan.md).
 
 ## Phase 3 — Generative Retrieval
 
-The time-safe sequence dataset, catalog-valid code trie and collision-aware candidate interface have been implemented and tested. A trained sequence model and its retrieval comparison with Dense remain pending.
+The time-safe sequence dataset, catalog-valid code trie and collision-aware candidate interface have been implemented and tested. A train-only code-transition baseline has been fully evaluated and is weaker than Dense; a small Transformer training/decoding path has passed CPU smoke checks, but full model training and its retrieval comparison remain pending.
 
-Current protocol: [m3_protocol.md](m3_protocol.md). Experiment slot: model configuration, training logs, valid-code generation, and full-catalog Recall/NDCG comparison.
+Current protocol: [m3_protocol.md](m3_protocol.md). Real transition baseline: [results_m3_transition.md](results_m3_transition.md). Transformer full-run plan: [m3_transformer_plan.md](m3_transformer_plan.md).
 
 ## Phase 4 — Dynamic Tool Router
 

@@ -12,7 +12,7 @@ The completed M3 foundation is a typed data boundary, catalog-valid code decoder
 
 ## Valid-code decoding contract
 
-`SemanticCodeTrie` indexes only complete codes present in the frozen catalog. A `NextTokenScorer` supplies **global-vocabulary log-probabilities** for the next token given history codes and the already generated prefix. Beam search expands only trie-approved next tokens and accumulates log-probabilities; it cannot return a code absent from the catalog. Empty or non-finite valid proposals yield no code and an explicit candidate shortfall. No Transformer or online LLM implements this scorer yet; tests use deterministic fake scorers only.
+`SemanticCodeTrie` indexes only complete codes present in the frozen catalog. A `NextTokenScorer` supplies log-probabilities over the complete position-specific token vocabulary for the next token given history codes and the already generated prefix. Beam search expands only trie-approved next tokens and accumulates log-probabilities; it cannot return a code absent from the catalog. Empty or non-finite valid proposals yield no code and an explicit candidate shortfall. A fitted count scorer has full-split results; a causal Transformer scorer has only a CPU smoke checkpoint and batched interface tests.
 
 ## Collision-aware item retrieval
 
@@ -22,4 +22,4 @@ This train-only group ordering keeps the future generative-only route distinct f
 
 ## Next acceptance gate
 
-Implement a simple train-only code-transition baseline and a small trained Transformer adapter for `NextTokenScorer`. Keep model size and training budget aligned to the 10,969 available prefixes. Select beam width, checkpoint and any collision/fusion settings on validation only. Then compare Popularity, Dense, generative-only and hybrid retrieval on the same 8,151-user split and full item catalog using Recall/NDCG@5/10/20; additionally report invalid/duplicate/insufficient candidates, collision expansion and latency. Preserve degraded results without claiming online CTR or revenue impact.
+The simple train-only code-transition baseline has been trained and evaluated, with results in [results_m3_transition.md](results_m3_transition.md). The small causal Transformer adapter and a shared evaluator are implemented and CPU-smoke-tested, but full training is pending; [m3_transformer_plan.md](m3_transformer_plan.md) records the proposed budget and acceptance checks. Select checkpoint, beam width and any collision/fusion settings on validation only. Then compare Popularity, Dense, trained generative-only and hybrid retrieval on the same 8,151-user split and full item catalog using Recall/NDCG@5/10/20; additionally report invalid/duplicate/insufficient candidates, collision expansion and latency. Preserve degraded results without claiming online CTR or revenue impact.
