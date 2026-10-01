@@ -1,6 +1,6 @@
 # GenRecAgent
 
-GenRecAgent is a research project for personalized e-commerce recommendation with planned dense and generative retrieval plus a tool-using agent. The repository contains a Phase 0 mock agent, real-data M1 Popularity/Dense baselines, a full-catalog RQ-VAE run with severe codebook collapse, and a separate full-catalog PCA-whitened residual K-Means Semantic ID baseline.
+GenRecAgent is a research project for personalized e-commerce recommendation with planned dense and generative retrieval plus a tool-using agent. The repository contains a Phase 0 mock agent, real-data M1 Popularity/Dense baselines, a full-catalog RQ-VAE run with severe codebook collapse, a separate PCA-whitened residual K-Means Semantic ID baseline, and M3 sequence/candidate infrastructure without a trained generator.
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
@@ -37,10 +37,11 @@ Implemented and locally verified:
 - BGE-encoded full item catalog, NumPy exact cosine/IP retrieval, saved item mapping, train-only popularity, and validation/test evaluation on a 5,000-user real-data subset
 - M2 RQ-VAE training, checkpointing and collision-aware mapping on all 112,590 items; the actual run collapsed to 1,718 unique codes
 - Separate PCA-whitened residual MiniBatch K-Means baseline on the same item vectors and item split; 97,231 unique three-token codes, with all remaining collisions recorded
+- M3 leakage-aware prefix examples, catalog-valid Semantic ID trie decoding, and collision-aware item candidate expansion tested on the full catalog with deterministic mock scores
 
 Implemented but not yet verified: optional FAISS IndexFlatIP backend. The M1 result used exact NumPy search.
 
-Planned: trained Transformer generative retrieval, real Qwen tool policy, SFT, and unified ablations. M1's real-data baseline is complete for both a 5,000-user development subset and all 8,151 eligible users. M2 now has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet and no next-item improvement is claimed.
+Planned: trained Transformer generative retrieval, real Qwen tool policy, SFT, and unified ablations. M1's real-data baseline is complete for both a 5,000-user development subset and all 8,151 eligible users. M2 has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet. M3 training and recommendation metrics have not run.
 
 ## Project Structure
 
@@ -104,6 +105,10 @@ python scripts/train_rqvae.py --smoke-test --max-items 128 --epochs 2 --batch-si
 ```
 
 The later full-catalog RQ-VAE run confirmed severe codebook collapse despite a valid checkpoint. A separate PCA-whitened residual MiniBatch K-Means tokenizer was therefore built and trained as an explicitly named baseline, not presented as a repaired RQ-VAE. Its 97,231 unique codes still leave 24,794 products in collision groups; downstream retrieval must handle those groups. Both full runs, their equal item split, measured reconstruction/usage/collision metrics and limitations are in [docs/results_m2.md](docs/results_m2.md). No M2 next-item recommendation metric is claimed.
+
+## M3 Generative Retrieval foundation (model pending)
+
+`python scripts/prepare_m3_sequences.py` prepares user-history-to-next-code examples using only train-period prefixes for supervised training. On the full eligible-user data it produces **10,969 train**, **8,151 validation** and **8,151 test** examples. The valid-code trie masks impossible token paths; the candidate adapter expands colliding codes, filters seen items and uses train-only popularity for deterministic within-code ordering. No sequence model has been trained and no generative Recall/NDCG is reported. See [docs/m3_protocol.md](docs/m3_protocol.md) for exact split, scoring and collision rules.
 
 Agent metrics remain software-level placeholders until a separate reproducible natural-language task set exists. See [docs/implementation_plan.md](docs/implementation_plan.md) for milestones and evidence status.
 

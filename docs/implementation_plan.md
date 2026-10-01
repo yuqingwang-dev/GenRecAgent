@@ -36,6 +36,8 @@ The M1 implementation can be checked on deterministic fixture rows without downl
 
 Later 2026-10-01 update: the laboratory full-catalog RQ-VAE run was received and independently verified, but its three codebooks collapsed severely. A separately labeled PCA-whitened residual MiniBatch K-Means baseline was implemented and run on the same full catalog and item split. [results_m2.md](results_m2.md) preserves both outcomes and the remaining collision limitations. M3 may use the K-Means codes only with explicit collision expansion/ranking and without claiming RQ-VAE success.
 
+M3 foundation update: 10,969 train-only user-history prefixes, 8,151 validation examples and 8,151 test examples are prepared from the full eligible-user set. Catalog-valid code decoding and target-independent collision expansion are implemented and tested, but the scorer is not backed by a trained Transformer. [m3_protocol.md](m3_protocol.md) defines the training/evaluation boundary and next acceptance gate.
+
 ## Protocol decisions to preserve
 
 - Reviews are observed interactions, not proof of purchase. `verified_purchase` remains a data field, not a prerequisite for inclusion.

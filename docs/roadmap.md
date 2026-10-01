@@ -20,9 +20,9 @@ Original plan and smoke diagnostics: [m2_training_plan.md](m2_training_plan.md).
 
 ## Phase 3 — Generative Retrieval
 
-Add a sequence model that generates semantic IDs and compare its retrieval quality and latency with the dense baseline.
+The time-safe sequence dataset, catalog-valid code trie and collision-aware candidate interface have been implemented and tested. A trained sequence model and its retrieval comparison with Dense remain pending.
 
-Experiment slot: training configuration, generation constraints, and benchmark results.
+Current protocol: [m3_protocol.md](m3_protocol.md). Experiment slot: model configuration, training logs, valid-code generation, and full-catalog Recall/NDCG comparison.
 
 ## Phase 4 — Dynamic Tool Router
 
