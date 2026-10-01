@@ -1,6 +1,6 @@
-# M2 RQ-VAE training plan and approval point
+# M2 original RQ-VAE plan and observed outcome
 
-Status on 2026-10-01: training code, checkpoint persistence and collision-aware mapping are implemented; 19 unit/integration tests pass and a 128-item two-epoch CPU smoke run completed. **The full catalog has not been trained.**
+This section preserves the original plan made before the laboratory run. Later on 2026-10-01, the full catalog was trained and independently verified, but the learned codebooks collapsed. The separate residual K-Means baseline and both full results are recorded in [results_m2.md](results_m2.md). Do not present the plan below as an unexecuted proposal or the RQ-VAE as a successful Semantic ID tokenizer.
 
 ## Proposed full run
 
@@ -8,7 +8,7 @@ Status on 2026-10-01: training code, checkpoint persistence and collision-aware 
 - Model: project-implemented MLP encoder 384→256→64, three learned residual codebooks with 256 entries of dimension 64 each, and MLP decoder 64→256→384. Total **279,488 parameters**. Quantization uses nearest-code assignment, straight-through reconstruction gradients, codebook loss and commitment loss (`0.25`). Codebooks are initialized from **training-item** latents using k-means++ seeding; no validation or test target is used for initialization.
 - Item-level deterministic reconstruction split: seed 42, 90% train (about 101,331 items), 10% validation (about 11,259 items). This is separate from the M1 user-sequence train/validation/test split. The static metadata catalog visibility assumption applies. Validation reconstruction MSE selects the best checkpoint; user next-item test interactions do not influence this training.
 - Optimizer: Adam, learning rate `0.001`, batch size `512`, maximum `20` epochs, about `198` training steps per epoch or `3,960` total. Device: local RTX 4060 Laptop GPU with 8 GiB VRAM; CPU fallback is available. A rough runtime estimate is **10–60 minutes**, depending on actual throughput and GPU contention. This is an estimate, not a measured full-run duration. Expected checkpoint size is small (<10 MB); item-to-token JSON and logs add tens of MB. Existing vectors are read from the project directory.
-- Command after approval: `python scripts/train_rqvae.py --device cuda --output-dir outputs/m2_rqvae_full`. The output directory must be empty. The run records source checksums, code revision, package versions, seed, split item IDs, losses per epoch, best checkpoint and item Semantic ID map.
+- Executed command: `python scripts/train_rqvae.py --device cuda --output-dir outputs/m2_rqvae_full`. The run recorded source checksums, code revision, package versions, seed, split item IDs, losses per epoch, best checkpoint and item Semantic ID map.
 
 ## Acceptance checks
 
@@ -20,3 +20,7 @@ Status on 2026-10-01: training code, checkpoint persistence and collision-aware 
 ## CPU smoke evidence
 
 Both smoke runs used the same 128 real item vectors, two epochs, two levels of 16 codes, and a 64→16 hidden/latent configuration on CPU. Random codebook initialization used **1/16 codes at each level**, with all 128 items colliding. Training-item latent initialization used **9/16 and 10/16 codes**, with 26 unique code sequences and 119 items in collision groups. Best validation reconstruction MSE in the latter run was `0.003603`. These are pipeline diagnostics, not a full-catalog experiment or a performance claim.
+
+## Full-run outcome
+
+The full RQ-VAE used 3/84/20 codes per level, yielded 1,718 unique three-token IDs for 112,590 items and put 112,405 items in collision groups. Its checkpoint, source hashes, split and reconstruction MSE were independently verified. Low validation MSE alone did not satisfy the utilization/collision acceptance checks. Preserve this negative result as a control when evaluating the separately named PCA-whitened residual K-Means baseline.

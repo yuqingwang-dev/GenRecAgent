@@ -34,6 +34,8 @@ The M1 implementation can be checked on deterministic fixture rows without downl
 
 2026-10-01 update: M2 RQ-VAE and collision-aware mapping code is implemented and tested on a 128-item CPU smoke run. Full-catalog training and its validity checks await approval; see [m2_training_plan.md](m2_training_plan.md). No generative retrieval or recommendation gain is claimed from the smoke result.
 
+Later 2026-10-01 update: the laboratory full-catalog RQ-VAE run was received and independently verified, but its three codebooks collapsed severely. A separately labeled PCA-whitened residual MiniBatch K-Means baseline was implemented and run on the same full catalog and item split. [results_m2.md](results_m2.md) preserves both outcomes and the remaining collision limitations. M3 may use the K-Means codes only with explicit collision expansion/ranking and without claiming RQ-VAE success.
+
 ## Protocol decisions to preserve
 
 - Reviews are observed interactions, not proof of purchase. `verified_purchase` remains a data field, not a prerequisite for inclusion.

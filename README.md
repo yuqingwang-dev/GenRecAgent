@@ -1,6 +1,6 @@
 # GenRecAgent
 
-GenRecAgent is a research project for personalized e-commerce recommendation with planned dense and generative retrieval plus a tool-using agent. The repository contains a Phase 0 mock agent, a real-data M1 Popularity/Dense baseline, and an M2 RQ-VAE training pipeline verified only by a small CPU smoke run.
+GenRecAgent is a research project for personalized e-commerce recommendation with planned dense and generative retrieval plus a tool-using agent. The repository contains a Phase 0 mock agent, real-data M1 Popularity/Dense baselines, a full-catalog RQ-VAE run with severe codebook collapse, and a separate full-catalog PCA-whitened residual K-Means Semantic ID baseline.
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
@@ -35,11 +35,12 @@ Implemented and locally verified:
 - tests and lint configuration
 - M1 typed review/item data handling, chronological leave-last-out, and deterministic user sampling on both local fixtures and official All_Beauty data
 - BGE-encoded full item catalog, NumPy exact cosine/IP retrieval, saved item mapping, train-only popularity, and validation/test evaluation on a 5,000-user real-data subset
-- M2 RQ-VAE forward/backward path, train-only codebook initialization, checkpointing, item Semantic ID mapping, and collision/usage measurement on 128 real item vectors in a two-epoch CPU smoke run
+- M2 RQ-VAE training, checkpointing and collision-aware mapping on all 112,590 items; the actual run collapsed to 1,718 unique codes
+- Separate PCA-whitened residual MiniBatch K-Means baseline on the same item vectors and item split; 97,231 unique three-token codes, with all remaining collisions recorded
 
-Implemented but not yet verified at intended scale: full 112,590-item RQ-VAE training. The optional FAISS IndexFlatIP backend has not been measured; the M1 result used exact NumPy search.
+Implemented but not yet verified: optional FAISS IndexFlatIP backend. The M1 result used exact NumPy search.
 
-Planned: full-catalog trained RQ-VAE Semantic IDs, trained Transformer generative retrieval, real Qwen tool policy, SFT, and unified ablations. M1's **real-data baseline is complete** for both a 5,000-user development subset and all 8,151 eligible users. M2 is **in progress**; smoke-test tokens are not reported as a usable trained catalog codebook.
+Planned: trained Transformer generative retrieval, real Qwen tool policy, SFT, and unified ablations. M1's real-data baseline is complete for both a 5,000-user development subset and all 8,151 eligible users. M2 now has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet and no next-item improvement is claimed.
 
 ## Project Structure
 
@@ -102,7 +103,7 @@ The CPU smoke command below trains only 128 items for two epochs and is a softwa
 python scripts/train_rqvae.py --smoke-test --max-items 128 --epochs 2 --batch-size 32 --hidden-dim 64 --latent-dim 16 --num-levels 2 --codebook-size 16 --device cpu --output-dir outputs/m2_cpu_smoke_new
 ```
 
-This smoke run initially revealed codebook collapse; train-only latent initialization increased code usage but still left substantial collisions. No full-catalog RQ-VAE training or M2 recommendation metric is claimed. The proposed full run, resource estimate and acceptance checks are in [docs/m2_training_plan.md](docs/m2_training_plan.md).
+The later full-catalog RQ-VAE run confirmed severe codebook collapse despite a valid checkpoint. A separate PCA-whitened residual MiniBatch K-Means tokenizer was therefore built and trained as an explicitly named baseline, not presented as a repaired RQ-VAE. Its 97,231 unique codes still leave 24,794 products in collision groups; downstream retrieval must handle those groups. Both full runs, their equal item split, measured reconstruction/usage/collision metrics and limitations are in [docs/results_m2.md](docs/results_m2.md). No M2 next-item recommendation metric is claimed.
 
 Agent metrics remain software-level placeholders until a separate reproducible natural-language task set exists. See [docs/implementation_plan.md](docs/implementation_plan.md) for milestones and evidence status.
 

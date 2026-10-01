@@ -14,9 +14,9 @@ Experiment records: [full eligible-user results](results_m1_full.md) and [develo
 
 ## Phase 2 — Semantic ID
 
-RQ-VAE training, codebook persistence and collision-aware item mapping are implemented; a 128-item CPU smoke run verified the pipeline. Full-catalog training and evaluation await resource approval. RQ-KMeans is not claimed as an implemented baseline.
+RQ-VAE training and collision-aware item mapping were completed on the full catalog, but the learned codebooks collapsed. A separate PCA-whitened residual MiniBatch K-Means baseline was implemented and run on the same full catalog; it produces substantially more distinct codes while retaining all collisions for downstream handling. RQ-VAE refinement remains open.
 
-Experiment plan and smoke diagnostics: [m2_training_plan.md](m2_training_plan.md). Full-run codebook settings, reconstruction, utilization and collision statistics remain pending.
+Original plan and smoke diagnostics: [m2_training_plan.md](m2_training_plan.md). Full-run comparison and limitations: [results_m2.md](results_m2.md).
 
 ## Phase 3 — Generative Retrieval
 
