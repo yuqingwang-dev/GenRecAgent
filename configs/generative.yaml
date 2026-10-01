@@ -8,3 +8,8 @@ retrieval:
   beam_size: 20
   max_codes: 20
   top_k: 20
+transition:
+  alpha: 10.0
+evaluation:
+  k_values: [5, 10, 20]
+  output_path: outputs/m3_transition
