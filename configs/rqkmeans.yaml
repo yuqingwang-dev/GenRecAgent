@@ -1,0 +1,15 @@
+source:
+  index_path: data/processed/All_Beauty/index
+  output_path: outputs/m2_rqkmeans
+projection:
+  enabled: true
+  output_dim: 64
+  fit_on: train_items_only
+model:
+  num_levels: 3
+  codebook_size: 256
+  batch_size: 4096
+  max_iter: 30
+  seed: 42
+evaluation:
+  validation_fraction: 0.1
