@@ -1,0 +1,10 @@
+source:
+  prepared_path: data/processed/All_Beauty_full_optimized
+  semantic_ids_path: outputs/m2_rqkmeans_full/item_semantic_ids.json
+  output_path: data/processed/All_Beauty_m3
+sequences:
+  max_history: 20
+retrieval:
+  beam_size: 20
+  max_codes: 20
+  top_k: 20
