@@ -1,6 +1,6 @@
 # GenRecAgent
 
-GenRecAgent is a research project for personalized e-commerce recommendation with planned dense and generative retrieval plus a tool-using agent. The repository contains a Phase 0 mock agent, real-data M1 Popularity/Dense baselines, a full-catalog RQ-VAE run with severe codebook collapse, a separate PCA-whitened residual K-Means Semantic ID baseline, and M3 sequence/candidate infrastructure without a trained generator.
+GenRecAgent is a research project for personalized e-commerce recommendation with dense and generative retrieval plus a planned tool-using agent. The repository contains a Phase 0 mock agent, real-data M1 Popularity/Dense baselines, a full-catalog RQ-VAE run with severe codebook collapse, a separate PCA-whitened residual K-Means Semantic ID baseline, and a fully evaluated M3 small Transformer. The Transformer is a valid negative result: it does not outperform the simpler baselines.
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
@@ -38,10 +38,11 @@ Implemented and locally verified:
 - M2 RQ-VAE training, checkpointing and collision-aware mapping on all 112,590 items; the actual run collapsed to 1,718 unique codes
 - Separate PCA-whitened residual MiniBatch K-Means baseline on the same item vectors and item split; 97,231 unique three-token codes, with all remaining collisions recorded
 - M3 leakage-aware prefix examples, catalog-valid Semantic ID trie decoding, and collision-aware item candidate expansion tested on the full catalog with deterministic mock scores
+- M3 train-only code-transition baseline and a full-trained causal Transformer, both evaluated on all 8,151 validation and test users
 
 Implemented but not yet verified: optional FAISS IndexFlatIP backend. The M1 result used exact NumPy search.
 
-Planned: full-trained Transformer generative retrieval, real Qwen tool policy, SFT, and unified ablations. M1's real-data baseline is complete for both a 5,000-user development subset and all 8,151 eligible users. M2 has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet. M3 has a measured count-transition baseline; full Transformer training and recommendation metrics remain pending.
+Planned: validation-led M3 improvement experiments, real Qwen tool policy, SFT, and unified ablations. M1's real-data baseline is complete for both a 5,000-user development subset and all 8,151 eligible users. M2 has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet. M3's trained Transformer underperforms code transition, Popularity and Dense on the held-out test split; see [docs/results_m3_transformer.md](docs/results_m3_transformer.md).
 
 ## Project Structure
 
@@ -106,11 +107,11 @@ python scripts/train_rqvae.py --smoke-test --max-items 128 --epochs 2 --batch-si
 
 The later full-catalog RQ-VAE run confirmed severe codebook collapse despite a valid checkpoint. A separate PCA-whitened residual MiniBatch K-Means tokenizer was therefore built and trained as an explicitly named baseline, not presented as a repaired RQ-VAE. Its 97,231 unique codes still leave 24,794 products in collision groups; downstream retrieval must handle those groups. Both full runs, their equal item split, measured reconstruction/usage/collision metrics and limitations are in [docs/results_m2.md](docs/results_m2.md). No M2 next-item recommendation metric is claimed.
 
-## M3 Generative Retrieval foundation (model pending)
+## M3 Generative Retrieval
 
-`python scripts/prepare_m3_sequences.py` prepares user-history-to-next-code examples using only train-period prefixes for supervised training. On the full eligible-user data it produces **10,969 train**, **8,151 validation** and **8,151 test** examples. The valid-code trie masks impossible token paths; the candidate adapter expands colliding codes, filters seen items and uses train-only popularity for deterministic within-code ordering. The count-based sequence baseline has measured Recall/NDCG; no full Transformer model result is reported. See [docs/m3_protocol.md](docs/m3_protocol.md) for exact split, scoring and collision rules.
+`python scripts/prepare_m3_sequences.py` prepares user-history-to-next-code examples using only train-period prefixes for supervised training. On the full eligible-user data it produces **10,969 train**, **8,151 validation** and **8,151 test** examples. The valid-code trie masks impossible token paths; the candidate adapter expands colliding codes, filters seen items and uses train-only popularity for deterministic within-code ordering. See [docs/m3_protocol.md](docs/m3_protocol.md) for exact split, scoring and collision rules.
 
-The train-only code-transition baseline has now run on all 8,151 validation and test users. Test Recall@20 was **0.007852**, below Dense **0.036560** under the same item universe; all code paths were valid. See [docs/results_m3_transition.md](docs/results_m3_transition.md) for all K values and diagnostics. A small causal Transformer, target-only loss, checkpointing and batched trie scorer are implemented, but only a 128/32-example CPU smoke run has trained it. Full training/evaluation remain pending; see [docs/m3_transformer_plan.md](docs/m3_transformer_plan.md).
+The train-only code-transition baseline ran on all 8,151 validation and test users. Test Recall@20 was **0.007852**, below Dense **0.036560** under the same item universe; see [docs/results_m3_transition.md](docs/results_m3_transition.md). A 473,731-parameter causal Transformer was subsequently trained on all 10,969 train prefixes, selected by validation target-token loss, and evaluated with the same full-catalog constrained decoder. Its test Recall@20 was only **0.002454** despite zero invalid generated codes or candidate shortfalls. This is a negative model result, not a generative-retrieval win; see [docs/results_m3_transformer.md](docs/results_m3_transformer.md) for provenance, all metrics and limitations. The earlier resource plan remains in [docs/m3_transformer_plan.md](docs/m3_transformer_plan.md).
 
 Agent metrics remain software-level placeholders until a separate reproducible natural-language task set exists. See [docs/implementation_plan.md](docs/implementation_plan.md) for milestones and evidence status.
 

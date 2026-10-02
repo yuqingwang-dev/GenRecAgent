@@ -1,6 +1,8 @@
-# M3 small Transformer: implemented pipeline and full-run gate
+# M3 small Transformer: pre-run plan (historical)
 
-Status: model, target-only label masking, causal attention, batched code scorer, checkpointing and a shared full-catalog evaluator are implemented. **Only a 128-train/32-validation, one-epoch CPU smoke run has executed**; its validation token accuracy was zero and its 10-user retrieval smoke had zero hits with a four-code budget. Neither is a formal model result.
+This document records the gate and risks identified before full training. The full 2026-10-02 run and its negative retrieval result are reported in [results_m3_transformer.md](results_m3_transformer.md); the pending-status statements below describe the earlier planning state, not the current project status.
+
+At planning time, model, target-only label masking, causal attention, batched code scorer, checkpointing and a shared full-catalog evaluator were implemented. **Only a 128-train/32-validation, one-epoch CPU smoke run had executed**; its validation token accuracy was zero and its 10-user retrieval smoke had zero hits with a four-code budget. Neither was a formal model result.
 
 ## Proposed full training
 
