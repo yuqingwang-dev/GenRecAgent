@@ -1,3 +1,7 @@
+import subprocess
+import sys
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -138,3 +142,15 @@ def test_catalog_mismatch_rejected_before_routing() -> None:
     popularity.ranked.pop()
     with pytest.raises(ValueError, match="catalog"):
         OfflineRecommendationRouter(dense, popularity)
+
+
+def test_phase_zero_import_does_not_eagerly_load_optional_ml_packages() -> None:
+    code = (
+        "import sys; sys.path.insert(0, 'src'); import genrecagent.agent; "
+        "assert 'torch' not in sys.modules; assert 'sklearn' not in sys.modules"
+    )
+    subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=Path(__file__).resolve().parents[1],
+        check=True, capture_output=True, text=True,
+    )

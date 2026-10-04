@@ -1,6 +1,6 @@
 # GenRecAgent
 
-GenRecAgent is a research project for personalized e-commerce recommendation with dense and generative retrieval plus a planned tool-using agent. The repository contains a Phase 0 mock agent, real-data M1 Popularity/Dense baselines, a full-catalog RQ-VAE run with severe codebook collapse, a separate PCA-whitened residual K-Means Semantic ID baseline, and a fully evaluated M3 small Transformer. The Transformer is a valid negative result: it does not outperform the simpler baselines.
+GenRecAgent is a research project for personalized e-commerce recommendation with dense and generative retrieval plus a planned tool-using agent. The repository contains a Phase 0 mock agent, real-data M1 Popularity/Dense baselines, a full-catalog RQ-VAE run with severe codebook collapse, a separate PCA-whitened residual K-Means Semantic ID baseline, a fully evaluated M3 small Transformer, and a first real-data M4 offline router. The Transformer is a valid negative result: it does not outperform the simpler baselines.
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
@@ -20,7 +20,7 @@ UserRequest
        | failure -> bounded re-plan
 ```
 
-The tool contract is deliberately narrow (`name`, `description`, `run`). A future dense retriever, semantic-ID generator, reranker, or policy tool can be registered without rewriting the agent loop.
+The tool contract is deliberately narrow (`name`, `description`, `run`). This diagram is the Phase 0 mock loop. The M4 history-based offline router is a separate real-data integration path; natural-language planning and hard-constraint verification are not implemented there yet.
 
 ## Current Status
 
@@ -39,10 +39,11 @@ Implemented and locally verified:
 - Separate PCA-whitened residual MiniBatch K-Means baseline on the same item vectors and item split; 97,231 unique three-token codes, with all remaining collisions recorded
 - M3 leakage-aware prefix examples, catalog-valid Semantic ID trie decoding, and collision-aware item candidate expansion tested on the full catalog with deterministic mock scores
 - M3 train-only code-transition baseline and a full-trained causal Transformer, both evaluated on all 8,151 validation and test users
+- M4 dense-first offline router over the real catalog, with train-only Popularity cold-start/fallback and an opt-in code-transition route; full-validation metrics exactly reproduce M1 Dense
 
 Implemented but not yet verified: optional FAISS IndexFlatIP backend. The M1 result used exact NumPy search.
 
-Planned: validation-led M3 improvement experiments, real Qwen tool policy, SFT, and unified ablations. M1's real-data baseline is complete for both a 5,000-user development subset and all 8,151 eligible users. M2 has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet. M3's trained Transformer underperforms code transition, Popularity and Dense on the held-out test split; see [docs/results_m3_transformer.md](docs/results_m3_transformer.md).
+Planned: validated natural-language intent/constraint routing, Qwen tool policy, SFT, and unified ablations. M1's real-data baseline is complete for both a 5,000-user development subset and all 8,151 eligible users. M2 has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet. M3's trained Transformer underperforms code transition, Popularity and Dense on the held-out test split; see [docs/results_m3_transformer.md](docs/results_m3_transformer.md). M4 currently guarantees offline routing safety and Dense parity, not a new recommendation-quality gain.
 
 ## Project Structure
 
@@ -52,7 +53,7 @@ data/                    Ignored raw/processed data directories
 docs/                    Architecture and roadmap notes
 scripts/                 Safe local demo and future experiment entry points
 src/genrecagent/         Package code
-tests/                   Phase 0 through M2 unit/integration tests
+tests/                   Phase 0 through M4 unit/integration tests
 outputs/                 Ignored experiment records
 artifacts/               Ignored local model cache
 ```
@@ -115,7 +116,19 @@ The train-only code-transition baseline ran on all 8,151 validation and test use
 
 A validation-only follow-up found that missing the correct Semantic ID code, rather than invalid decoding or collision expansion, dominates the Transformer failure. A fixed code-rank fusion grid added only one validation hit over the count baseline at its best weight, so it was **not** promoted to a test run. See [docs/results_m3_validation_diagnostics.md](docs/results_m3_validation_diagnostics.md) for cohorts, failure counts, fusion ablation and the next modeling decision.
 
-Agent metrics remain software-level placeholders until a separate reproducible natural-language task set exists. See [docs/implementation_plan.md](docs/implementation_plan.md) for milestones and evidence status.
+Natural-language agent task metrics remain software-level placeholders until a separate reproducible task set exists. See [docs/implementation_plan.md](docs/implementation_plan.md) for milestones and evidence status.
+
+## M4 Dense-first offline routing
+
+The real-data history router selects Dense by default, uses train-only Popularity for cold starts or invalid Dense results, and permits code-transition generation only through an explicit experimental mode. It verifies catalog membership, seen/duplicate items, ranks, scores and candidate count, with a bounded attempt trace. It does not interpret text queries, enforce price/category constraints, call an LLM, or claim that generation beats Dense. All 8,151 validation users selected Dense with zero failures, and every Recall/NDCG@5/10/20 value exactly matched the original M1 Dense result. See [docs/results_m4_router.md](docs/results_m4_router.md).
+
+```powershell
+python scripts/run_m4_router.py --history-item B01DNS649G --top-k 3
+python scripts/run_m4_router.py --top-k 3
+python scripts/evaluate_m4_router.py --mode auto --output-dir outputs/m4_router_validation_reproduction
+```
+
+The first command traces Dense routing, the second traces Popularity cold start, and the third evaluates the validation split only. Use `--mode generative` with the trace command to opt into the weaker code-transition route and inspect its fallback behavior. These commands require the local prepared data/index and do not download a model.
 
 ## Roadmap
 

@@ -20,15 +20,15 @@ Original plan and smoke diagnostics: [m2_training_plan.md](m2_training_plan.md).
 
 ## Phase 3 — Generative Retrieval
 
-The time-safe sequence dataset, catalog-valid code trie and collision-aware candidate interface have been implemented and tested. A train-only code-transition baseline has been fully evaluated and is weaker than Dense; a small Transformer training/decoding path has passed CPU smoke checks, but full model training and its retrieval comparison remain pending.
+The time-safe sequence dataset, catalog-valid code trie and collision-aware candidate interface were implemented and tested. A train-only code-transition baseline and a small Transformer were both fully trained/evaluated where applicable; both are weaker than Dense on the held-out test split. Validation-only failure analysis found code prediction, rather than invalid decoding, to be the main limitation. A rank-fusion ablation did not establish a reliable gain.
 
-Current protocol: [m3_protocol.md](m3_protocol.md). Real transition baseline: [results_m3_transition.md](results_m3_transition.md). Transformer full-run plan: [m3_transformer_plan.md](m3_transformer_plan.md).
+Protocol: [m3_protocol.md](m3_protocol.md). Full results: [transition](results_m3_transition.md), [Transformer](results_m3_transformer.md), and [validation-only diagnosis](results_m3_validation_diagnostics.md). The pre-run plan remains in [m3_transformer_plan.md](m3_transformer_plan.md).
 
 ## Phase 4 — Dynamic Tool Router
 
-Route among dense retrieval, generative retrieval, filtering, and reranking based on intent, constraints, confidence, and tool cost.
+First increment complete: a real-data, history-based, dense-first offline router with explicit opt-in code-transition route, train-only Popularity cold-start/fallback, bounded attempts, candidate verification and full-validation Dense parity. It does not yet route by natural-language intent, enforce hard product constraints, or invoke an LLM. See [results_m4_router.md](results_m4_router.md).
 
-Experiment slot: routing accuracy, invalid calls, and latency breakdown.
+Next experiment slot: a separately specified intent/constraint task set, hard-constraint verifier, invalid-call and recovery rates, and latency breakdown.
 
 ## Phase 5 — Planner + Verifier + Re-planning
 
