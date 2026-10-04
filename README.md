@@ -113,6 +113,8 @@ The later full-catalog RQ-VAE run confirmed severe codebook collapse despite a v
 
 The train-only code-transition baseline ran on all 8,151 validation and test users. Test Recall@20 was **0.007852**, below Dense **0.036560** under the same item universe; see [docs/results_m3_transition.md](docs/results_m3_transition.md). A 473,731-parameter causal Transformer was subsequently trained on all 10,969 train prefixes, selected by validation target-token loss, and evaluated with the same full-catalog constrained decoder. Its test Recall@20 was only **0.002454** despite zero invalid generated codes or candidate shortfalls. This is a negative model result, not a generative-retrieval win; see [docs/results_m3_transformer.md](docs/results_m3_transformer.md) for provenance, all metrics and limitations. The earlier resource plan remains in [docs/m3_transformer_plan.md](docs/m3_transformer_plan.md).
 
+A validation-only follow-up found that missing the correct Semantic ID code, rather than invalid decoding or collision expansion, dominates the Transformer failure. A fixed code-rank fusion grid added only one validation hit over the count baseline at its best weight, so it was **not** promoted to a test run. See [docs/results_m3_validation_diagnostics.md](docs/results_m3_validation_diagnostics.md) for cohorts, failure counts, fusion ablation and the next modeling decision.
+
 Agent metrics remain software-level placeholders until a separate reproducible natural-language task set exists. See [docs/implementation_plan.md](docs/implementation_plan.md) for milestones and evidence status.
 
 ## Roadmap
