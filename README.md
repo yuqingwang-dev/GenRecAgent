@@ -120,7 +120,7 @@ Natural-language agent task metrics remain software-level placeholders until a s
 
 ## M4 Dense-first offline routing
 
-The real-data history router selects Dense by default, uses train-only Popularity for cold starts or invalid Dense results, and permits code-transition generation only through an explicit experimental mode. It verifies catalog membership, seen/duplicate items, ranks, scores and candidate count, with a bounded attempt trace. It does not interpret text queries, enforce price/category constraints, call an LLM, or claim that generation beats Dense. All 8,151 validation users selected Dense with zero failures, and every Recall/NDCG@5/10/20 value exactly matched the original M1 Dense result. See [docs/results_m4_router.md](docs/results_m4_router.md).
+The real-data history router selects Dense by default, uses train-only Popularity for cold starts or invalid Dense results, and permits code-transition generation only through an explicit experimental mode. It verifies catalog membership, seen/duplicate items, ranks, scores and candidate count, with a bounded attempt trace. It does not interpret text queries, enforce price/category constraints, call an LLM, or claim that generation beats Dense. All 8,151 default-mode validation users selected Dense with zero failures, and every Recall/NDCG@5/10/20 value exactly matched the original M1 Dense result. In a separate explicit-generative validation run, three of 8,151 requests fell back to Dense because generated candidates were insufficient. See [docs/results_m4_router.md](docs/results_m4_router.md).
 
 ```powershell
 python scripts/run_m4_router.py --history-item B01DNS649G --top-k 3

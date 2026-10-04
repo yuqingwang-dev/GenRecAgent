@@ -125,6 +125,28 @@ def test_shortfall_and_dense_exception_use_bounded_fallback(monkeypatch) -> None
     assert result.satisfied and result.fallback_used
 
 
+@pytest.mark.parametrize(
+    ("bad_hit", "expected_reason"),
+    [
+        (SearchHit("A", -1.0, 1, "generative"), "unknown_or_seen_item"),
+        (SearchHit("UNKNOWN", -1.0, 1, "generative"), "unknown_or_seen_item"),
+        (SearchHit("B", float("nan"), 1, "generative"), "invalid_rank_source_or_score"),
+        (SearchHit("B", -1.0, 3, "generative"), "invalid_rank_source_or_score"),
+        (SearchHit("B", -1.0, 1, "dense"), "invalid_rank_source_or_score"),
+    ],
+)
+def test_bad_generated_candidate_falls_back_to_dense(bad_hit, expected_reason) -> None:
+    dense, popularity = _routes()
+    generator = FakeGenerator((bad_hit, SearchHit("C", -2.0, 2, "generative")))
+    result = OfflineRecommendationRouter(dense, popularity, generator).route(
+        OfflineRouteRequest(("A",), top_k=2, mode="generative")
+    )
+    assert result.selected_route == "dense"
+    assert result.fallback_used and result.satisfied
+    assert result.attempts[0].reason == expected_reason
+    assert all(hit.source == "dense" for hit in result.hits)
+
+
 def test_no_eligible_items_and_invalid_requests_do_not_fake_success() -> None:
     dense, popularity = _routes()
     router = OfflineRecommendationRouter(dense, popularity)
