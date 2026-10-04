@@ -66,6 +66,15 @@ def test_cold_start_routes_directly_to_train_only_popularity() -> None:
         assert [attempt.route for attempt in result.attempts] == ["popularity"]
 
 
+def test_unknown_history_items_do_not_reduce_eligible_catalog_size() -> None:
+    dense, popularity = _routes()
+    router = OfflineRecommendationRouter(dense, popularity)
+    result = router.route(OfflineRouteRequest(("A", "UNKNOWN"), top_k=3))
+    assert result.satisfied and result.selected_route == "dense"
+    assert len(result.hits) == 3
+    assert all(hit.item_id not in {"A", "UNKNOWN"} for hit in result.hits)
+
+
 def test_explicit_generative_route_and_invalid_candidate_fallback() -> None:
     dense, popularity = _routes()
     good = FakeGenerator((

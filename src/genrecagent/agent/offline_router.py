@@ -80,7 +80,8 @@ class OfflineRecommendationRouter:
 
     def route(self, request: OfflineRouteRequest) -> RoutedRecommendation:
         seen = set(request.history_items)
-        required = min(request.top_k, len(self.catalog - seen))
+        eligible_count = len(self.catalog) - sum(item_id in self.catalog for item_id in seen)
+        required = min(request.top_k, eligible_count)
         if required == 0:
             return RoutedRecommendation(
                 request.mode, None, "no_eligible_catalog_items", (), (), True, False
