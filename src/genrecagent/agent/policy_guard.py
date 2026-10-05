@@ -78,6 +78,10 @@ def guard_policy_decision(text: str, parsed: ParsedIntent, evidence: str | None)
     if parsed.status == "accepted":
         if _UNSUPPORTED_CONDITIONS.search(text):
             raise ValueError("unsupported_condition_was_accepted")
+        if re.search(r"generative|生成式", text, re.IGNORECASE) and re.search(
+            r"popular|trending|bestseller|热门|畅销|热卖", text, re.IGNORECASE
+        ):
+            raise ValueError("conflicting_routes_were_accepted")
         if parsed.intent == "generative" and not re.search(
             r"generative|生成式", text, re.IGNORECASE
         ):

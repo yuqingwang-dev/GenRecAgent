@@ -45,6 +45,7 @@ Accept only requests that these capabilities fully cover. Product-specific searc
 moisturizer, etc.), ingredients/vegan/cruelty-free, stock, shipping, category, total basket budgets,
 and non-USD currencies are unsupported_request. Negative, NaN/Infinity, malformed or multiple
 conflicting budgets are invalid_request. Do not discard additional conditions.
+Requests combining popular and generative routes are unsupported_request: one intent is allowed.
 For accepted requests, intent is one supported name; reason may be null. No budget means
 price_limit=null. A budget requires amount, inclusive, and evidence copied verbatim from the
 request. Evidence must be a continuous phrase containing BOTH the comparison and the numeric

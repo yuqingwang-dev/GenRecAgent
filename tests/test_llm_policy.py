@@ -109,3 +109,9 @@ def test_budget_guard_observes_chinese_evidence_and_conflicts() -> None:
     assert observe_budget("参考我的历史，单价最多5美元。").limit == PriceLimit(5)
     assert observe_budget("at most $20 and under $10").status == "invalid_budget"
     assert observe_budget("单价最多20元").status == "unsupported_currency"
+
+
+def test_multiple_requested_routes_are_not_silently_reduced_to_one() -> None:
+    parsed, evidence = validate_policy_call(_call(intent="generative"))
+    with pytest.raises(ValueError, match="conflicting_routes"):
+        guard_policy_decision("Use popular and generative retrieval.", parsed, evidence)
