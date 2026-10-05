@@ -2,6 +2,8 @@
 
 Run date: 2026-10-04 (Asia/Shanghai). This is a **history-based offline retrieval router**, not a natural-language or provider-backed agent. It reuses the full M1 catalog/index and train-interaction popularity. The default policy does not auto-select generative retrieval because both measured M3 generative routes underperformed Dense. The code-transition generator is available only through an explicit experimental mode. No new model was trained.
 
+This records the first M4 increment. The subsequent controlled-language intent and price-constraint path is reported in [results_m4_constraints.md](results_m4_constraints.md).
+
 ## Policy and safety checks
 
 | Request | Attempt order | Rule |

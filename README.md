@@ -20,7 +20,7 @@ UserRequest
        | failure -> bounded re-plan
 ```
 
-The tool contract is deliberately narrow (`name`, `description`, `run`). This diagram is the Phase 0 mock loop. The M4 history-based offline router is a separate real-data integration path; natural-language planning and hard-constraint verification are not implemented there yet.
+The tool contract is deliberately narrow (`name`, `description`, `run`). This diagram is the Phase 0 mock loop. M4 is a separate real-data path with a fixed English/Chinese intent grammar, catalog price eligibility and bounded route traces; provider-backed planning remains future work.
 
 ## Current Status
 
@@ -40,10 +40,11 @@ Implemented and locally verified:
 - M3 leakage-aware prefix examples, catalog-valid Semantic ID trie decoding, and collision-aware item candidate expansion tested on the full catalog with deterministic mock scores
 - M3 train-only code-transition baseline and a full-trained causal Transformer, both evaluated on all 8,151 validation and test users
 - M4 dense-first offline router over the real catalog, with train-only Popularity cold-start/fallback and an opt-in code-transition route; full-validation metrics exactly reproduce M1 Dense
+- M4 controlled intents and hard price constraints, with 48 development/48 held-out synthetic tasks, independent metadata grading and zero measured price violations
 
 Implemented but not yet verified: optional FAISS IndexFlatIP backend. The M1 result used exact NumPy search.
 
-Planned: validated natural-language intent/constraint routing, Qwen tool policy, SFT, and unified ablations. M1's real-data baseline is complete for both a 5,000-user development subset and all 8,151 eligible users. M2 has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet. M3's trained Transformer underperforms code transition, Popularity and Dense on the held-out test split; see [docs/results_m3_transformer.md](docs/results_m3_transformer.md). M4 currently guarantees offline routing safety and Dense parity, not a new recommendation-quality gain.
+Planned: broader free-form intent tasks, Qwen tool policy, SFT, and unified ablations. M1's real-data baseline is complete for both a 5,000-user development subset and all 8,151 eligible users. M2 has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet. M3's trained Transformer underperforms code transition, Popularity and Dense on the held-out test split; see [docs/results_m3_transformer.md](docs/results_m3_transformer.md). M4 has measured price-constraint execution on controlled synthetic tasks and unconstrained Dense parity; recommendation-quality improvement remains unestablished.
 
 ## Project Structure
 
@@ -120,7 +121,7 @@ Natural-language agent task metrics remain software-level placeholders until a s
 
 ## M4 Dense-first offline routing
 
-The real-data history router selects Dense by default, uses train-only Popularity for cold starts or invalid Dense results, and permits code-transition generation only through an explicit experimental mode. It verifies catalog membership, seen/duplicate items, ranks, scores and candidate count, with a bounded attempt trace. It does not interpret text queries, enforce price/category constraints, call an LLM, or claim that generation beats Dense. All 8,151 default-mode validation users selected Dense with zero failures, and every Recall/NDCG@5/10/20 value exactly matched the original M1 Dense result. In a separate explicit-generative validation run, three of 8,151 requests fell back to Dense because generated candidates were insufficient. See [docs/results_m4_router.md](docs/results_m4_router.md).
+The real-data history router selects Dense by default, uses train-only Popularity for cold starts or invalid Dense results, and permits code-transition generation only through an explicit experimental mode. It verifies catalog membership, seen/duplicate items, ranks, scores and candidate count, with a bounded attempt trace. All 8,151 default-mode validation users selected Dense with zero failures, and every Recall/NDCG@5/10/20 value exactly matched the original M1 Dense result. In a separate explicit-generative validation run, three of 8,151 requests fell back to Dense because generated candidates were insufficient. See [docs/results_m4_router.md](docs/results_m4_router.md) for the first increment.
 
 ```powershell
 python scripts/run_m4_router.py --history-item B01DNS649G --top-k 3
@@ -129,6 +130,12 @@ python scripts/evaluate_m4_router.py --mode auto --output-dir outputs/m4_router_
 ```
 
 The first command traces Dense routing, the second traces Popularity cold start, and the third evaluates the validation split only. Use `--mode generative` with the trace command to opt into the weaker code-transition route and inspect its fallback behavior. These commands require the local prepared data/index and do not download a model.
+
+The subsequent constrained agent accepts fixed English/Chinese phrases for history, popular and generative recommendations with optional maximum price. It excludes unknown prices when a budget is present, preserves eligibility through fallback, and reports insufficient candidates or unsupported conditions explicitly. A 48-task held-out synthetic suite passed all output contracts; 21/21 budget-feasible requests were filled versus 0/21 for a top-five-then-filter diagnostic baseline. These are curated software task results, not broad natural-language or recommendation-relevance scores. See [docs/results_m4_constraints.md](docs/results_m4_constraints.md).
+
+```powershell
+python scripts/run_m4_constraints.py --text "根据我的历史推荐商品，价格不超过10美元。" --history-item B01DNS649G --top-k 3
+```
 
 ## Roadmap
 

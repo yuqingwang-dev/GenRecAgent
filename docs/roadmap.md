@@ -26,9 +26,9 @@ Protocol: [m3_protocol.md](m3_protocol.md). Full results: [transition](results_m
 
 ## Phase 4 — Dynamic Tool Router
 
-First increment complete: a real-data, history-based, dense-first offline router with explicit opt-in code-transition route, train-only Popularity cold-start/fallback, bounded attempts, candidate verification and full-validation Dense parity. It does not yet route by natural-language intent, enforce hard product constraints, or invoke an LLM. See [results_m4_router.md](results_m4_router.md).
+Two increments are complete: the real-data dense-first router with bounded fallback and full-validation Dense parity ([results_m4_router.md](results_m4_router.md)), followed by a fixed English/Chinese intent grammar and hard static-price eligibility. The latter has 48 development/48 held-out controlled synthetic tasks with independent grading ([results_m4_constraints.md](results_m4_constraints.md)). Provider-backed free-form interpretation remains open.
 
-Next experiment slot: a separately specified intent/constraint task set, hard-constraint verifier, invalid-call and recovery rates, and latency breakdown.
+Next experiment slot: broader free-form tasks and typed LLM tool selection, retaining metadata eligibility and failure checks as deterministic boundaries.
 
 ## Phase 5 — Planner + Verifier + Re-planning
 

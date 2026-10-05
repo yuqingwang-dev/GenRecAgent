@@ -42,6 +42,8 @@ M3 next-step update: the train-only code-transition scorer was fitted and evalua
 
 ## Protocol decisions to preserve
 
+2026-10-05 current-state update: M3 full Transformer and validation-only diagnosis are complete and preserve negative results. M4 now has a real-data dense-first router, a fixed English/Chinese intent grammar, and hard static-price eligibility through fallback. Curated 48-development/48-held-out task results and unconstrained Dense parity are recorded in [results_m4_constraints.md](results_m4_constraints.md). The earlier milestone updates above describe their historical state; provider-backed free-form policy and SFT remain open.
+
 - Reviews are observed interactions, not proof of purchase. `verified_purchase` remains a data field, not a prerequisite for inclusion.
 - Use `parent_asin` for both reviews and metadata. Drop interactions with no matching metadata. Keep the earliest review per `(user_id, parent_asin)`; ties use source row order. Sort each user by `(timestamp, source row index)`; equal timestamps are a deterministic but not observable within-time ordering.
 - Retain items with unknown price, mark it missing, and do not claim a price constraint is satisfied from that value. Do not use metadata rating statistics as a learned rank feature in M1.
