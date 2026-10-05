@@ -8,6 +8,7 @@ import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from statistics import mean
 from time import perf_counter
 
 import yaml
@@ -95,22 +96,30 @@ def main() -> None:
     for task in tasks:
         call_started = perf_counter()
         rules_result = agent.run(task["text"], tuple(task["history_items"]), top_k=task["top_k"])
+        rules_latency = (perf_counter() - call_started) * 1000
+        grade_started = perf_counter()
+        rules_grade = grade_constraint_task(task, rules_result, items)
+        rules_grading_latency = (perf_counter() - grade_started) * 1000
         records.append({
             "task_id": task["task_id"], "method": "rules", "expected": task["expected"],
             "result": rules_result.to_dict(),
-            "grade": grade_constraint_task(task, rules_result, items),
-            "latency_ms": (perf_counter() - call_started) * 1000,
+            "grade": rules_grade, "latency_ms": rules_latency,
+            "grading_latency_ms": rules_grading_latency,
         })
         call_started = perf_counter()
         decision = policy.decide(task["text"])
         result = agent.execute_intent(
             decision.parsed, tuple(task["history_items"]), top_k=task["top_k"]
         )
+        model_latency = (perf_counter() - call_started) * 1000
+        grade_started = perf_counter()
+        model_grade = grade_constraint_task(task, result, items)
+        model_grading_latency = (perf_counter() - grade_started) * 1000
         decisions.append((task, decision))
         records.append({
             "task_id": task["task_id"], "method": "llm_guarded", "expected": task["expected"],
-            "result": result.to_dict(), "grade": grade_constraint_task(task, result, items),
-            "latency_ms": (perf_counter() - call_started) * 1000,
+            "result": result.to_dict(), "grade": model_grade,
+            "latency_ms": model_latency, "grading_latency_ms": model_grading_latency,
             "policy": decision.to_dict(), "first_raw_labels_correct": _raw_correct(task, decision),
         })
         if not decision.cache_hit:
@@ -145,6 +154,10 @@ def main() -> None:
             "generation_seconds": sum(g["elapsed_seconds"] for g in generations),
         },
         "scope": "curated task labels and static metadata; raw model and guarded results separated",
+        "avg_grading_latency_ms": {
+            method: mean(row["grading_latency_ms"] for row in records if row["method"] == method)
+            for method in ("rules", "llm_guarded")
+        },
     }
     commit = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True,
@@ -161,6 +174,7 @@ def main() -> None:
         "schema_sha256": SCHEMA_SHA256, "max_attempts": policy.max_attempts,
         "model_input_scope": "request text and capability/schema prompt; no labels/user IDs",
         "cache_scope": "text-only intent decisions reused across three history contexts",
+        "request_latency_scope": "policy and catalog execution; excludes grading/model loading",
         "m3_train_examples_sha256": resources.train_examples_sha256,
         "git_commit": commit, "git_dirty": dirty, "platform": platform.platform(),
         "created_utc": datetime.now(UTC).isoformat(),
