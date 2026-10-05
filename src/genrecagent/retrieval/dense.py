@@ -112,6 +112,7 @@ class DenseRetriever:
         *,
         top_k: int = 10,
         exclude_seen_items: set[str] | frozenset[str] | None = None,
+        allowed_item_ids: set[str] | frozenset[str] | None = None,
     ) -> list[SearchHit]:
         if not self.item_ids or top_k <= 0:
             return []
@@ -119,7 +120,7 @@ class DenseRetriever:
         if vector is None or len(vector) != self.embeddings.shape[1]:
             raise ValueError("Query must be nonzero and match embedding dimension")
         seen = exclude_seen_items or set()
-        if self.backend == "faiss":
+        if self.backend == "faiss" and allowed_item_ids is None:
             requested = min(len(self.item_ids), top_k + len(seen))
             scores, indices = self._index.search(vector.reshape(1, -1), requested)
             ordered = [
@@ -133,6 +134,14 @@ class DenseRetriever:
                 if index is not None:
                     scores[index] = -np.inf
             eligible_count = len(self.item_ids) - len(seen & self.item_to_index.keys())
+            if allowed_item_ids is not None:
+                eligible = np.zeros(len(self.item_ids), dtype=bool)
+                for item_id in allowed_item_ids:
+                    index = self.item_to_index.get(item_id)
+                    if index is not None and item_id not in seen:
+                        eligible[index] = True
+                scores[~eligible] = -np.inf
+                eligible_count = int(eligible.sum())
             count = min(top_k, eligible_count)
             if count == 0:
                 return []

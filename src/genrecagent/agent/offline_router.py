@@ -13,7 +13,7 @@ from genrecagent.retrieval.generative import GenerativeRetriever
 from genrecagent.retrieval.popularity import PopularityRetriever
 
 RouteName = Literal["dense", "generative", "popularity"]
-RequestedRoute = Literal["auto", "dense", "generative"]
+RequestedRoute = Literal["auto", "dense", "generative", "popularity"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,12 +21,15 @@ class OfflineRouteRequest:
     history_items: tuple[str, ...]
     top_k: int = 20
     mode: RequestedRoute = "auto"
+    allowed_item_ids: frozenset[str] | None = None
 
     def __post_init__(self) -> None:
-        if self.top_k < 1:
+        if not isinstance(self.top_k, int) or isinstance(self.top_k, bool) or self.top_k < 1:
             raise ValueError("top_k must be positive")
-        if self.mode not in {"auto", "dense", "generative"}:
-            raise ValueError("mode must be auto, dense, or generative")
+        if self.mode not in {"auto", "dense", "generative", "popularity"}:
+            raise ValueError("mode must be auto, dense, generative, or popularity")
+        if self.allowed_item_ids is not None and not isinstance(self.allowed_item_ids, frozenset):
+            raise ValueError("allowed_item_ids must be an immutable set")
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,15 +83,21 @@ class OfflineRecommendationRouter:
 
     def route(self, request: OfflineRouteRequest) -> RoutedRecommendation:
         seen = set(request.history_items)
-        eligible_count = len(self.catalog) - sum(item_id in self.catalog for item_id in seen)
+        allowed = self.catalog if request.allowed_item_ids is None else request.allowed_item_ids
+        if request.allowed_item_ids is not None and not allowed.issubset(self.catalog):
+            raise ValueError("Allowed item IDs must belong to the routing catalog")
+        eligible_count = len(allowed) - sum(item_id in allowed for item_id in seen)
         required = min(request.top_k, eligible_count)
         if required == 0:
             return RoutedRecommendation(
                 request.mode, None, "no_eligible_catalog_items", (), (), True, False
             )
         has_known_history = any(item_id in self.catalog for item_id in request.history_items)
-        if request.mode == "generative":
-            routes: tuple[RouteName, ...] = (
+        if request.mode == "popularity":
+            routes: tuple[RouteName, ...] = ("popularity",)
+            decision_reason = "explicit_popularity_route"
+        elif request.mode == "generative":
+            routes = (
                 ("generative", "dense", "popularity") if has_known_history
                 else ("generative", "popularity")
             )
@@ -110,7 +119,8 @@ class OfflineRecommendationRouter:
                     if user_vector is None:
                         raise ValueError("No indexed item in history")
                     hits = tuple(self.dense.search(
-                        user_vector, top_k=required, exclude_seen_items=seen
+                        user_vector, top_k=required, exclude_seen_items=seen,
+                        allowed_item_ids=request.allowed_item_ids,
                     ))
                 elif route == "generative":
                     if self.generative is None:
@@ -124,11 +134,22 @@ class OfflineRecommendationRouter:
                         result.diagnostics.candidate_shortfall,
                     )):
                         reason = "invalid_or_insufficient_generative_candidates"
+                    reason = reason or self._invalid_hits(hits, route, seen, len(hits))
+                    if request.allowed_item_ids is not None:
+                        hits = tuple(
+                            SearchHit(hit.item_id, hit.score, rank, hit.source)
+                            for rank, hit in enumerate(
+                                (hit for hit in hits if hit.item_id in allowed), start=1
+                            )
+                        )
                 else:
                     hits = tuple(self.popularity.search(
-                        top_k=required, exclude_seen_items=seen
+                        top_k=required, exclude_seen_items=seen,
+                        allowed_item_ids=request.allowed_item_ids,
                     ))
                 reason = reason or self._invalid_hits(hits, route, seen, required)
+                if reason is None and any(hit.item_id not in allowed for hit in hits):
+                    reason = "ineligible_item"
             except Exception as exc:  # a bounded route failure must not crash fallback
                 reason = f"{type(exc).__name__}: {exc}"
             attempts.append(RouteAttempt(
@@ -146,7 +167,7 @@ class OfflineRecommendationRouter:
                     hits=hits,
                     attempts=tuple(attempts),
                     fallback_used=(route != routes[0] or (
-                        route == "popularity" and request.mode != "generative"
+                        route == "popularity" and request.mode in {"auto", "dense"}
                     )),
                     satisfied=True,
                 )

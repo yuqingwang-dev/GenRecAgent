@@ -14,10 +14,15 @@ class PopularityRetriever:
         self.counts = counts
 
     def search(
-        self, *, top_k: int, exclude_seen_items: set[str] | frozenset[str] | None = None
+        self, *, top_k: int,
+        exclude_seen_items: set[str] | frozenset[str] | None = None,
+        allowed_item_ids: set[str] | frozenset[str] | None = None,
     ) -> list[SearchHit]:
         seen = exclude_seen_items or set()
-        eligible = (item_id for item_id in self.ranked if item_id not in seen)
+        eligible = (
+            item_id for item_id in self.ranked if item_id not in seen
+            and (allowed_item_ids is None or item_id in allowed_item_ids)
+        )
         return [
             SearchHit(
                 item_id=item_id,
