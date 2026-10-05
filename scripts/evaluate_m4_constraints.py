@@ -6,10 +6,8 @@ import json
 import platform
 import subprocess
 import sys
-from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
-from statistics import mean
 from time import perf_counter
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -18,6 +16,7 @@ from genrecagent.agent.constrained_agent import ConstrainedRecommendationAgent
 from genrecagent.agent.offline_factory import load_offline_router
 from genrecagent.data.storage import load_items, read_jsonl
 from genrecagent.evaluation.constraint_tasks import grade_constraint_task
+from genrecagent.evaluation.task_summary import summarize_task_records as _summarize
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,37 +24,6 @@ ROOT = Path(__file__).resolve().parents[1]
 def _sha256(path: Path) -> str:
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
-
-
-def _summarize(records: list[dict]) -> dict[str, object]:
-    grades = [row["grade"] for row in records]
-    feasible = sum(g["feasible"] for g in grades)
-    budget_feasible = sum(g["budget_feasible"] for g in grades)
-    rejections = sum(g["rejection_task"] for g in grades)
-    budget_items = sum(g["budgeted_returned_items"] for g in grades)
-    violations = sum(g["price_violations"] for g in grades)
-    return {
-        "tasks": len(records),
-        "parse_correct": sum(g["parse_correct"] for g in grades),
-        "contract_pass": sum(g["contract_pass"] for g in grades),
-        "feasible_tasks": feasible,
-        "feasible_fulfilled": sum(g["fulfilled_feasible"] for g in grades),
-        "budget_feasible_tasks": budget_feasible,
-        "budget_feasible_fulfilled": sum(
-            g["budget_feasible"] and g["fulfilled_feasible"] for g in grades
-        ),
-        "rejection_tasks": rejections,
-        "rejections_correct": sum(g["rejection_correct"] for g in grades),
-        "budgeted_returned_items": budget_items,
-        "price_violations": violations,
-        "unknown_price_admitted": sum(g["unknown_price_admitted"] for g in grades),
-        "fallback_tasks": sum(
-            bool(row["result"]["route_trace"] and row["result"]["route_trace"]["fallback_used"])
-            for row in records
-        ),
-        "outcomes": dict(Counter(row["result"]["status"] for row in records)),
-        "avg_request_latency_ms": mean(row["latency_ms"] for row in records),
-    }
 
 
 def main() -> None:

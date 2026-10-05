@@ -73,7 +73,18 @@ class ConstrainedRecommendationAgent:
         self, text: str, history_items: tuple[str, ...] = (), *, top_k: int = 5,
         prefilter: bool = True,
     ) -> ConstrainedRecommendation:
-        parsed = parse_recommendation_intent(text)
+        return self.execute_intent(
+            parse_recommendation_intent(text), history_items, top_k=top_k, prefilter=prefilter
+        )
+
+    def execute_intent(
+        self, parsed: ParsedIntent, history_items: tuple[str, ...] = (), *, top_k: int = 5,
+        prefilter: bool = True,
+    ) -> ConstrainedRecommendation:
+        if parsed.status == "accepted" and parsed.intent not in {
+            "personalized", "popular", "generative"
+        }:
+            parsed = ParsedIntent("invalid_request", reason="accepted_intent_missing_or_invalid")
         if not isinstance(top_k, int) or isinstance(top_k, bool) or not 1 <= top_k <= 100:
             parsed = ParsedIntent("invalid_request", reason="top_k_out_of_range")
         if parsed.status != "accepted":
