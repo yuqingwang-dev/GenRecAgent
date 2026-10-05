@@ -18,8 +18,10 @@ TOOL_DEFINITION = {
         "type": "object", "additionalProperties": False,
         "required": ["status", "intent", "price_limit", "reason"],
         "properties": {
-            "status": {"enum": ["accepted", "invalid_request", "unsupported_request"]},
-            "intent": {"enum": ["personalized", "popular", "generative", None]},
+            "status": {"type": "string",
+                       "enum": ["accepted", "invalid_request", "unsupported_request"]},
+            "intent": {"type": ["string", "null"],
+                       "enum": ["personalized", "popular", "generative", None]},
             "price_limit": {
                 "anyOf": [
                     {"type": "null"},
@@ -64,6 +66,16 @@ Input: 根据我的历史推荐商品，单价最多8美元。
 Output: {"name":"recommendation_policy","arguments":{
 "status":"accepted","intent":"personalized",
 "price_limit":{"amount":8,"inclusive":true,"evidence":"单价最多8美元"},"reason":null}}
+Input: Suggest popular products.
+Output: {"name":"recommendation_policy","arguments":{
+"status":"accepted","intent":"popular","price_limit":null,"reason":null}}
+Input: Use my history and keep prices under -2 dollars.
+Output: {"name":"recommendation_policy","arguments":{
+"status":"invalid_request","intent":null,"price_limit":null,"reason":"negative_budget"}}
+Input: Show only vegan products.
+Output: {"name":"recommendation_policy","arguments":{
+"status":"unsupported_request","intent":null,"price_limit":null,
+"reason":"ingredient_filter_unsupported"}}
 """
 PROMPT_SHA256 = hashlib.sha256(POLICY_PROMPT.encode()).hexdigest()
 SCHEMA_SHA256 = hashlib.sha256(json.dumps(TOOL_DEFINITION, sort_keys=True).encode()).hexdigest()
@@ -95,7 +107,9 @@ def validate_policy_call(call: dict[str, Any]) -> tuple[ParsedIntent, str | None
     limit, evidence = None, None
     if budget is not None:
         if not isinstance(budget, dict) or set(budget) != {"amount", "inclusive", "evidence"}:
-            raise ValueError("price_argument_keys_invalid")
+            raise ValueError(
+                "price_argument_keys_invalid: require amount, inclusive, evidence only"
+            )
         limit = PriceLimit(budget["amount"], budget["inclusive"])
         evidence = budget["evidence"]
         if not isinstance(evidence, str) or not 1 <= len(evidence) <= 256:
@@ -174,11 +188,16 @@ class LLMToolPolicy:
             if guard_valid:
                 result = PolicyDecision(parsed, tuple(attempts), rules_fallback=False)
                 break
+            observation = observe_budget(text)
             prompt = (
                 request_prompt
                 + "\nRepair the function call. Previous validation error: " + str(error)
-                + "\nObserved price phrase from the request: "
-                + json.dumps(observe_budget(text).evidence, ensure_ascii=False)
+                + "\nBudget observation derived from the request: "
+                + json.dumps({
+                    "status": observation.status,
+                    "price_limit": observation.limit.to_dict() if observation.limit else None,
+                    "evidence": observation.evidence,
+                }, ensure_ascii=False)
             )
         else:
             result = PolicyDecision(
