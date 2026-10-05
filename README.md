@@ -1,6 +1,6 @@
 # GenRecAgent
 
-GenRecAgent is a research project for personalized e-commerce recommendation with dense and generative retrieval plus a planned tool-using agent. The repository contains a Phase 0 mock agent, real-data M1 Popularity/Dense baselines, a full-catalog RQ-VAE run with severe codebook collapse, a separate PCA-whitened residual K-Means Semantic ID baseline, a fully evaluated M3 small Transformer, and a first real-data M4 offline router. The Transformer is a valid negative result: it does not outperform the simpler baselines.
+GenRecAgent is a research project for personalized e-commerce recommendation with dense and generative retrieval and a tool-policy prototype. The repository contains a Phase 0 mock agent, real-data M1 Popularity/Dense baselines, a collapsed RQ-VAE run, a separate residual K-Means Semantic ID baseline, a fully evaluated M3 small Transformer, and an M4 real-catalog router with price verification and local Qwen JSON decisions. The Transformer is a valid negative result: it does not outperform the simpler baselines.
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
@@ -20,7 +20,7 @@ UserRequest
        | failure -> bounded re-plan
 ```
 
-The tool contract is deliberately narrow (`name`, `description`, `run`). This diagram is the Phase 0 mock loop. M4 is a separate real-data path with a fixed English/Chinese intent grammar, catalog price eligibility and bounded route traces; provider-backed planning remains future work.
+The tool contract is deliberately narrow (`name`, `description`, `run`). This diagram is the Phase 0 mock loop. M4 is a separate real-data path with rule/Qwen intent decisions, catalog price eligibility, checked tool arguments and bounded repair/fallback traces. Broad multi-step planning remains future work.
 
 ## Current Status
 
@@ -41,10 +41,11 @@ Implemented and locally verified:
 - M3 train-only code-transition baseline and a full-trained causal Transformer, both evaluated on all 8,151 validation and test users
 - M4 dense-first offline router over the real catalog, with train-only Popularity cold-start/fallback and an opt-in code-transition route; full-validation metrics exactly reproduce M1 Dense
 - M4 controlled intents and hard price constraints, with 48 development/48 held-out synthetic tasks, independent metadata grading and zero measured price violations
+- Local Qwen2.5-1.5B JSON tool decisions with strict schema checks, grounded budgets and one repair; curated paraphrase held-out contracts improved from rules 9/30 to guarded pipeline 27/30, while raw model labels were only 3/10 unique expressions correct
 
 Implemented but not yet verified: optional FAISS IndexFlatIP backend. The M1 result used exact NumPy search.
 
-Planned: broader free-form intent tasks, Qwen tool policy, SFT, and unified ablations. M1's real-data baseline is complete for both a 5,000-user development subset and all 8,151 eligible users. M2 has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet. M3's trained Transformer underperforms code transition, Popularity and Dense on the held-out test split; see [docs/results_m3_transformer.md](docs/results_m3_transformer.md). M4 has measured price-constraint execution on controlled synthetic tasks and unconstrained Dense parity; recommendation-quality improvement remains unestablished.
+Planned: larger independent language task sets, verified trajectory collection, SFT and unified ablations. M1's real-data baseline is complete on all 8,151 eligible users. M2 has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet. M3's trained Transformer underperforms the simpler retrieval baselines. M4 has measured constrained task coverage and local Qwen execution; raw policy reliability remains weak and recommendation-quality improvement remains unestablished.
 
 ## Project Structure
 
@@ -136,6 +137,17 @@ The subsequent constrained agent accepts fixed English/Chinese phrases for histo
 ```powershell
 python scripts/run_m4_constraints.py --text "根据我的历史推荐商品，价格不超过10美元。" --history-item B01DNS649G --top-k 3
 ```
+
+## Local Qwen tool-policy extension
+
+The pinned Qwen2.5-1.5B-Instruct snapshot is cached locally. `run_llm_policy.py` compiles a request into checked JSON tool arguments and uses the same catalog verifier. Unknown tools, malformed/null fields and ungrounded budgets receive one repair attempt, then conservative rule fallback. On held-out curated paraphrases, the full pipeline passed 27/30 contracts versus rules 9/30, with zero observed budget violations; the raw model first-call labels were correct on only 3/10 independent expressions. The original controlled suite retained 48/48 pipeline contracts. See [docs/results_m4_llm_policy.md](docs/results_m4_llm_policy.md) for both splits, raw failures, timing and limits.
+
+```powershell
+$env:PYTHONNOUSERSITE = "1"
+python scripts/run_llm_policy.py --text 'Please base your picks on my past interactions; each item should be no more than $20.' --history-item B01DNS649G --top-k 3
+```
+
+This explicit model entry adds seconds of inference cost; the existing rule entry remains available. Runtime requirements are in `requirements-policy.txt`; the separate `download_qwen_policy.py` pins revision/file hashes when the snapshot is absent. Model inference is local and does not require a provider API key.
 
 ## Roadmap
 

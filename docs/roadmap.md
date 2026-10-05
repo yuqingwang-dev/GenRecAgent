@@ -26,13 +26,13 @@ Protocol: [m3_protocol.md](m3_protocol.md). Full results: [transition](results_m
 
 ## Phase 4 — Dynamic Tool Router
 
-Two increments are complete: the real-data dense-first router with bounded fallback and full-validation Dense parity ([results_m4_router.md](results_m4_router.md)), followed by a fixed English/Chinese intent grammar and hard static-price eligibility. The latter has 48 development/48 held-out controlled synthetic tasks with independent grading ([results_m4_constraints.md](results_m4_constraints.md)). Provider-backed free-form interpretation remains open.
+Three increments are complete: dense-first routing with bounded fallback and Dense parity ([results_m4_router.md](results_m4_router.md)), controlled intents and hard static-price eligibility ([results_m4_constraints.md](results_m4_constraints.md)), and a real local Qwen JSON policy with grounded repair and rule fallback ([results_m4_llm_policy.md](results_m4_llm_policy.md)). Curated paraphrase coverage improved, while raw model reliability remains weak.
 
-Next experiment slot: broader free-form tasks and typed LLM tool selection, retaining metadata eligibility and failure checks as deterministic boundaries.
+Next experiment slot: more independent expressions and verified trajectory collection, retaining metadata eligibility and raw-policy error reporting.
 
 ## Phase 5 — Planner + Verifier + Re-planning
 
-Replace the deterministic planner with a provider-backed planner, retain typed traces, and evaluate recovery from invalid or incomplete tool results.
+Local Qwen can now compile one typed intent/price decision, with one repair and conservative fallback. Broader multi-step plans and recovery from semantic/tool failures still need a separate evaluated task set.
 
 Experiment slot: task success, constraint satisfaction, and recovery rate.
 

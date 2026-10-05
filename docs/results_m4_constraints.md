@@ -2,6 +2,8 @@
 
 Run date: 2026-10-05 (Asia/Shanghai). The real-data router now accepts a bounded English/Chinese grammar for history recommendations, popularity recommendations and explicit code-transition recommendations. Price limits are applied before Dense/Popularity retrieval and retained through fallback; generated items are checked and filtered before acceptance. A final verifier checks the actual catalog metadata. Unknown, nonfinite, negative or nonnumeric prices cannot satisfy a budget. `under`/`below`/`低于` mean a strict upper bound; `at most`/`不超过` include the boundary.
 
+This records the rule-based constraint increment. The subsequent actual local Qwen integration and curated paraphrase comparison are reported in [results_m4_llm_policy.md](results_m4_llm_policy.md).
+
 The source catalog contains 112,590 items: **17,704 known prices and 94,886 missing prices**. Missing-price products remain eligible for requests without a budget. Price checks compare the numeric static source metadata; they do not establish current offers or perform currency conversion. Unsupported currencies, product-specific text searches, availability/vegan conditions and unrecognized compound requests receive an explicit rejection instead of silently losing conditions. The two broad category labels cannot support fine product-category constraints.
 
 ## Task protocol
