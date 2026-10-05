@@ -65,6 +65,7 @@ class LocalQwenLLM(BaseLLM):
             "provider": "local_qwen", "model_name": model_name, "revision": revision,
             "device": device, "dtype": dtype,
             "max_input_tokens": max_input_tokens, "max_new_tokens": max_new_tokens,
+            "do_sample": self.generation_config.do_sample,
             "torch_version": torch.__version__, "transformers_version": version("transformers"),
             "gpu": torch.cuda.get_device_name(0) if device == "cuda" else None,
         }

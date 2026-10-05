@@ -8,7 +8,7 @@ from typing import Any
 
 from genrecagent.agent.constraints import PriceLimit
 from genrecagent.agent.intent import ParsedIntent, parse_recommendation_intent
-from genrecagent.agent.policy_guard import guard_policy_decision
+from genrecagent.agent.policy_guard import guard_policy_decision, observe_budget
 from genrecagent.llm.base import BaseLLM
 
 TOOL_DEFINITION = {
@@ -47,10 +47,22 @@ and non-USD currencies are unsupported_request. Negative, NaN/Infinity, malforme
 conflicting budgets are invalid_request. Do not discard additional conditions.
 For accepted requests, intent is one supported name; reason may be null. No budget means
 price_limit=null. A budget requires amount, inclusive, and evidence copied verbatim from the
-request. under/below/less than/低于/少于 are exclusive.
+request. Evidence must be a continuous phrase containing BOTH the comparison and the numeric
+amount, for example "below $12", not just "below" and never a word absent from the request.
+under/below/less than/低于/少于 are exclusive.
 at most/no more than/up to/不超过/至多/最多/以内 are inclusive.
 For rejected requests, intent and price_limit must both be null and reason explains
-the rejection. Return one recommendation_policy function call with name and arguments only.
+the rejection in a brief phrase. Return one recommendation_policy function call with name and
+arguments only.
+Examples:
+Input: Show popular products below $12.
+Output: {"name":"recommendation_policy","arguments":{
+"status":"accepted","intent":"popular",
+"price_limit":{"amount":12,"inclusive":false,"evidence":"below $12"},"reason":null}}
+Input: 根据我的历史推荐商品，单价最多8美元。
+Output: {"name":"recommendation_policy","arguments":{
+"status":"accepted","intent":"personalized",
+"price_limit":{"amount":8,"inclusive":true,"evidence":"单价最多8美元"},"reason":null}}
 """
 PROMPT_SHA256 = hashlib.sha256(POLICY_PROMPT.encode()).hexdigest()
 SCHEMA_SHA256 = hashlib.sha256(json.dumps(TOOL_DEFINITION, sort_keys=True).encode()).hexdigest()
@@ -164,6 +176,8 @@ class LLMToolPolicy:
             prompt = (
                 request_prompt
                 + "\nRepair the function call. Previous validation error: " + str(error)
+                + "\nObserved price phrase from the request: "
+                + json.dumps(observe_budget(text).evidence, ensure_ascii=False)
             )
         else:
             result = PolicyDecision(
