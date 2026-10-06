@@ -28,22 +28,22 @@ Protocol: [m3_protocol.md](m3_protocol.md). Full results: [transition](results_m
 
 Three increments are complete: dense-first routing with bounded fallback and Dense parity ([results_m4_router.md](results_m4_router.md)), controlled intents and hard static-price eligibility ([results_m4_constraints.md](results_m4_constraints.md)), and a real local Qwen JSON policy with grounded repair and rule fallback ([results_m4_llm_policy.md](results_m4_llm_policy.md)). Curated paraphrase coverage improved, while raw model reliability remains weak.
 
-Next experiment slot: more independent expressions and verified trajectory collection, retaining metadata eligibility and raw-policy error reporting.
+Actual Dense + trained Transformer item-level fusion is now evaluated on full validation. More independent expressions and relevance improvements are deferred; no fusion recall gain is claimed. See [minimal completion results](results_fast_completion.md).
 
 ## Phase 5 — Planner + Verifier + Re-planning
 
-Local Qwen can now compile one typed intent/price decision, with one repair and conservative fallback. Broader multi-step plans and recovery from semantic/tool failures still need a separate evaluated task set.
+The real-data nine-tool environment now supports observed history, real retrieval, immutable observations, filtering/ranking, verified termination, bounded recovery and safe clarification. Fixed orchestration, raw Qwen multi-step decisions and two ablations have a separate reproducible synthetic task set. The raw Qwen policy is weak; the fixed teacher is not learned planning.
 
 Experiment slot: task success, constraint satisfaction, and recovery rate.
 
 ## Phase 6 — Agent Post-training
 
-Collect verified trajectories and add supervised fine-tuning only after a stable offline evaluator exists. Reinforcement learning is outside the current project scope.
+Verified v2 trajectories and assistant-only LoRA training/evaluation entries are implemented. Tiny random-model CPU software verification is complete; actual Qwen adapter training still requires the user's resource confirmation. Reinforcement learning is outside the current project scope.
 
 Experiment slot: training data version, policy changes, and safety checks.
 
 ## Phase 7 — Evaluation and Ablation
 
-Run reproducible comparisons across retrieval strategies, routing policies, verifier settings, and re-planning budgets.
+Minimal comparisons across real retrieval sources, policy types, finish verification and recovery are recorded in [results_fast_completion.md](results_fast_completion.md). Add the real SFT row after approved training; broader task sets and uncertainty estimates are later refinements.
 
 Experiment slot: final tables, confidence intervals, and failure analysis.

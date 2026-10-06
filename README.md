@@ -1,6 +1,6 @@
 # GenRecAgent
 
-GenRecAgent is a research project for personalized e-commerce recommendation with dense and generative retrieval and a tool-policy prototype. The repository contains a Phase 0 mock agent, real-data M1 Popularity/Dense baselines, a collapsed RQ-VAE run, a separate residual K-Means Semantic ID baseline, a fully evaluated M3 small Transformer, and an M4 real-catalog router with price verification and local Qwen JSON decisions. The Transformer is a valid negative result: it does not outperform the simpler baselines.
+GenRecAgent is a research project for personalized e-commerce recommendation with dense and generative retrieval and bounded real-tool execution. It includes measured Popularity/Dense baselines, a separate residual K-Means Semantic ID baseline after an RQ-VAE collapse, a fully evaluated small Transformer, actual item-level dual retrieval, and fixed/Qwen multi-step policies with verified termination. Executed assistant-action trajectories and a LoRA training/evaluation pipeline are ready; **real policy SFT has not run**. The Transformer does not outperform Dense.
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
@@ -20,7 +20,7 @@ UserRequest
        | failure -> bounded re-plan
 ```
 
-The tool contract is deliberately narrow (`name`, `description`, `run`). This diagram is the Phase 0 mock loop. M4 is a separate real-data path with rule/Qwen intent decisions, catalog price eligibility, checked tool arguments and bounded repair/fallback traces. Broad multi-step planning remains future work.
+The diagram above is the Phase 0 mock loop. The real-data multi-step entry is `scripts/run_tool_agent.py`: it reads history, calls actual Dense/Transformer/Popularity retrieval, filters and ranks candidates, verifies the result and terminates or recovers within a step budget. Fixed orchestration and raw Qwen policy are evaluated separately; a deterministic teacher is not presented as learned planning. See [the current completion report](docs/results_fast_completion.md).
 
 ## Current Status
 
@@ -42,10 +42,13 @@ Implemented and locally verified:
 - M4 dense-first offline router over the real catalog, with train-only Popularity cold-start/fallback and an opt-in code-transition route; full-validation metrics exactly reproduce M1 Dense
 - M4 controlled intents and hard price constraints, with 48 development/48 held-out synthetic tasks, independent metadata grading and zero measured price violations
 - Local Qwen2.5-1.5B JSON tool decisions with strict schema checks, grounded budgets and one repair; curated paraphrase held-out contracts improved from rules 9/30 to guarded pipeline 27/30, while raw model labels were only 3/10 unique expressions correct
+- Actual Dense + trained M3 Transformer item-level rank fusion, evaluated on all 8,151 validation users; equal weighting hurts recall, while 75% Dense weighting does not improve Recall@20
+- A nine-tool stateful environment with real catalog execution, immutable observations, bounded recovery and verified termination; fixed-flow and raw multi-step Qwen comparisons plus recovery/finish-gate ablations
+- Executed v2 trajectories (608 train / 492 validation / 490 test assistant actions), user-disjoint splits, assistant-only labels and a local LoRA entry verified on a tiny random CPU software test
 
 Implemented but not yet verified: optional FAISS IndexFlatIP backend. The M1 result used exact NumPy search.
 
-Planned: larger independent language task sets, verified trajectory collection, SFT and unified ablations. M1's real-data baseline is complete on all 8,151 eligible users. M2 has a usable **RQ-KMeans baseline**, but the original RQ-VAE quality goal remains unmet. M3's trained Transformer underperforms the simpler retrieval baselines. M4 has measured constrained task coverage and local Qwen execution; raw policy reliability remains weak and recommendation-quality improvement remains unestablished.
+Next acceptance gate: approved real LoRA SFT followed by the same held-out policy comparison. Larger independent language sets, broader ablations and public-release packaging can follow. M2's original RQ-VAE quality goal remains unmet; the usable tokenizer is explicitly an **RQ-KMeans baseline**. Raw Qwen multi-step reliability is poor, and no generative-retrieval gain is claimed.
 
 ## Project Structure
 
@@ -118,7 +121,7 @@ The train-only code-transition baseline ran on all 8,151 validation and test use
 
 A validation-only follow-up found that missing the correct Semantic ID code, rather than invalid decoding or collision expansion, dominates the Transformer failure. A fixed code-rank fusion grid added only one validation hit over the count baseline at its best weight, so it was **not** promoted to a test run. See [docs/results_m3_validation_diagnostics.md](docs/results_m3_validation_diagnostics.md) for cohorts, failure counts, fusion ablation and the next modeling decision.
 
-Natural-language agent task metrics remain software-level placeholders until a separate reproducible task set exists. See [docs/implementation_plan.md](docs/implementation_plan.md) for milestones and evidence status.
+Recommendation Recall/NDCG and synthetic language/tool task contracts are different evaluations. Do not treat task-contract success as recommendation relevance. See [docs/implementation_plan.md](docs/implementation_plan.md) for milestones and evidence status.
 
 ## M4 Dense-first offline routing
 
@@ -152,6 +155,30 @@ This explicit model entry adds seconds of inference cost; the existing rule entr
 ## Roadmap
 
 See [docs/roadmap.md](docs/roadmap.md) for the staged plan from a dense-retrieval baseline through semantic IDs, generative retrieval, dynamic routing, post-training, and ablations.
+
+## Minimal completion path
+
+Use the existing data, index and locally cached models; no new model download is needed on the development machine.
+
+```powershell
+conda activate genrecagent
+$env:PYTHONNOUSERSITE = "1"
+$env:OMP_NUM_THREADS = "4"
+$env:OPENBLAS_NUM_THREADS = "4"
+$env:HF_HUB_OFFLINE = "1"
+python scripts/run_tool_agent.py --policy fixed --mode hybrid --history-item B01DNS649G --max-price 20 --output outputs/my_tool_demo.json
+python scripts/evaluate_tool_agent.py --policy fixed --output-dir outputs/my_fixed_comparison
+```
+
+After explicit training approval:
+
+```powershell
+python -m pip install -r requirements-sft.txt
+python scripts/train_tool_sft.py --output-dir outputs/my_tool_sft
+python scripts/evaluate_tool_agent.py --policy sft --adapter outputs/my_tool_sft/adapter --output-dir outputs/my_sft_comparison
+```
+
+The configured full run uses Qwen2.5-1.5B, q/v LoRA rank 8, one epoch and 1,024-token samples. A `--smoke-test` run uses a tiny random CPU model and is **not** policy SFT; evaluation refuses that adapter. All output paths must be fresh. The compact result table, evidence locations and known gaps are in [docs/results_fast_completion.md](docs/results_fast_completion.md).
 
 ## References
 
