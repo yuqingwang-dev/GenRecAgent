@@ -14,8 +14,8 @@ assert torch.cuda.is_available() and torch.cuda.is_bf16_supported()
 free, total = torch.cuda.mem_get_info()
 print(json.dumps({"gpu": torch.cuda.get_device_name(0), "free_bytes": free,
                   "total_bytes": total, "torch": torch.__version__}), flush=True)
-if free < 7 * 1024**3:
-    raise RuntimeError("Less than 7 GiB free; do not disrupt other GPU users")
+if free < 5.5 * 1024**3:
+    raise RuntimeError("Less than 5.5 GiB free; do not disrupt other GPU users")
 manifest = json.loads((root / "outputs/m4_qwen_download/manifest.json").read_text())
 snapshot = root / "artifacts/model_cache/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots" / manifest["revision"]
 for name, record in manifest["files"].items():

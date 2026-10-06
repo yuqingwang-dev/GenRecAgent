@@ -16,6 +16,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from genrecagent.agent.action_loss import assistant_action_loss
 from genrecagent.agent.trajectory_data import action_tokens
 from genrecagent.data.storage import read_jsonl
 from genrecagent.retrieval.hybrid_loader import file_sha256
@@ -28,10 +29,8 @@ def evaluate_loss(model, rows, device):
     model.eval()
     with torch.no_grad():
         for row in rows:
-            inputs = torch.tensor([row["input_ids"]], device=device)
-            labels = torch.tensor([row["labels"]], device=device)
             count = sum(label != -100 for label in row["labels"])
-            loss = float(model(input_ids=inputs, labels=labels, use_cache=False).loss)
+            loss = float(assistant_action_loss(model, row, device))
             if not math.isfinite(loss):
                 raise ValueError("Nonfinite validation loss")
             total += loss * count
@@ -47,6 +46,9 @@ def main() -> None:
     parser.add_argument("--smoke-test", action="store_true")
     args = parser.parse_args()
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+    commit_at_start = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+    ).strip()
     output = args.output_dir or ROOT / config["output_dir"]
     if output.exists() and any(output.iterdir()):
         parser.error("Output directory must be empty")
@@ -143,6 +145,8 @@ def main() -> None:
         model.enable_input_require_grads()
     model.config.use_cache = False
     model.train()
+    if device == "cuda":
+        torch.cuda.reset_peak_memory_stats()
     parameters = [parameter for parameter in model.parameters() if parameter.requires_grad]
     optimizer = torch.optim.AdamW(parameters, lr=config["learning_rate"])
     accumulation = 1 if args.smoke_test else config["gradient_accumulation"]
@@ -162,9 +166,7 @@ def main() -> None:
         optimizer.zero_grad()
         for number, index in enumerate(order, 1):
             row = train_rows[index]
-            inputs = torch.tensor([row["input_ids"]], device=device)
-            labels = torch.tensor([row["labels"]], device=device)
-            loss = model(input_ids=inputs, labels=labels, use_cache=False).loss
+            loss = assistant_action_loss(model, row, device)
             if not torch.isfinite(loss):
                 raise ValueError("Nonfinite training loss")
             (loss / accumulation).backward()
@@ -196,6 +198,11 @@ def main() -> None:
         "best_validation_nll": best,
         "epochs": epochs,
         "assistant_only_labels": True,
+        "action_logits_only": True,
+        "cuda_peak_allocated_bytes": (
+            torch.cuda.max_memory_allocated() if device == "cuda" else None
+        ),
+        "cuda_peak_reserved_bytes": torch.cuda.max_memory_reserved() if device == "cuda" else None,
         "adapter_sha256": file_sha256(output / "adapter/adapter_model.safetensors"),
     }
     run_config = {
@@ -205,9 +212,12 @@ def main() -> None:
         "base_revision": config["revision"],
         "device": device,
         "seed": config["seed"],
-        "git_commit": subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
-        ).strip(),
+        "git_commit_at_start": commit_at_start,
+        "source_hashes": {
+            path: file_sha256(ROOT / path)
+            for path in ("scripts/train_tool_sft.py", "src/genrecagent/agent/action_loss.py")
+        },
+        "gpu": torch.cuda.get_device_name(0) if device == "cuda" else None,
         "versions": {package: version(package) for package in ("torch", "transformers", "peft")},
         "elapsed_seconds": perf_counter() - started,
         "created_utc": datetime.now(UTC).isoformat(),
