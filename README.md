@@ -1,6 +1,6 @@
 # GenRecAgent
 
-GenRecAgent is a research project for personalized e-commerce recommendation with dense and generative retrieval and bounded real-tool execution. It includes measured Popularity/Dense baselines, a separate residual K-Means Semantic ID baseline after an RQ-VAE collapse, a fully evaluated small Transformer, actual item-level dual retrieval, and fixed/Qwen multi-step policies with verified termination. Executed assistant-action trajectories and a LoRA training/evaluation pipeline are ready; **real policy SFT has not run**. The Transformer does not outperform Dense.
+GenRecAgent is a research project for personalized e-commerce recommendation with dense and generative retrieval and bounded real-tool execution. It includes measured Popularity/Dense baselines, a separate residual K-Means Semantic ID baseline after an RQ-VAE collapse, a fully evaluated small Transformer, actual item-level dual retrieval, and fixed/Prompt/SFT multi-step policies with verified termination. **Real one-epoch Qwen LoRA SFT and its paired task evaluation are complete**, with weights and logs returned from lab95. Learned retrieval and policy reliability remain weak; no generative recommendation gain is claimed.
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
@@ -45,10 +45,11 @@ Implemented and locally verified:
 - Actual Dense + trained M3 Transformer item-level rank fusion, evaluated on all 8,151 validation users; equal weighting hurts recall, while 75% Dense weighting does not improve Recall@20
 - A nine-tool stateful environment with real catalog execution, immutable observations, bounded recovery and verified termination; fixed-flow and raw multi-step Qwen comparisons plus recovery/finish-gate ablations
 - Executed v2 trajectories (608 train / 492 validation / 490 test assistant actions), user-disjoint splits, assistant-only labels and a local LoRA entry verified on a tiny random CPU software test
+- Actual Qwen2.5-1.5B LoRA training on lab95 RTX 3090: validation action NLL 0.6410 to 0.0382; same 12 held-out task contracts Fixed 12/12, Prompt 0/12, raw SFT 4/12 (only one of nine feasible tasks filled). Adapter hashes, returned artifacts and limitations are in [the SFT report](docs/results_m5_sft_lab95.md)
 
 Implemented but not yet verified: optional FAISS IndexFlatIP backend. The M1 result used exact NumPy search.
 
-Next acceptance gate: approved real LoRA SFT followed by the same held-out policy comparison. Larger independent language sets, broader ablations and public-release packaging can follow. M2's original RQ-VAE quality goal remains unmet; the usable tokenizer is explicitly an **RQ-KMeans baseline**. Raw Qwen multi-step reliability is poor, and no generative-retrieval gain is claimed.
+The minimum experimental chain now includes actual SFT, paired policy comparison, retrieval comparison, verification/recovery ablations and CLI traces. Keep Fixed as the reliable demonstration policy; raw SFT remains an opt-in experiment. Larger independent language sets, better learned policies and public-release packaging can follow. M2's original RQ-VAE quality goal remains unmet; the usable tokenizer is explicitly an **RQ-KMeans baseline**. This checkpoint is not a production-ready learned recommender.
 
 ## Project Structure
 
@@ -170,7 +171,13 @@ python scripts/run_tool_agent.py --policy fixed --mode hybrid --history-item B01
 python scripts/evaluate_tool_agent.py --policy fixed --output-dir outputs/my_fixed_comparison
 ```
 
-After explicit training approval:
+Load the adapter already trained on lab95 (local inference only):
+
+```powershell
+python scripts/run_tool_agent.py --policy sft --adapter outputs/tool_sft_lab95_server/tool_sft_lora/adapter --mode hybrid --history-item B01DNS649G --max-price 20 --output outputs/my_sft_demo.json
+```
+
+For a separately approved reproduction on lab95:
 
 ```powershell
 python -m pip install -r requirements-sft.txt
@@ -178,7 +185,7 @@ python scripts/train_tool_sft.py --output-dir outputs/my_tool_sft
 python scripts/evaluate_tool_agent.py --policy sft --adapter outputs/my_tool_sft/adapter --output-dir outputs/my_sft_comparison
 ```
 
-The configured full run uses Qwen2.5-1.5B, q/v LoRA rank 8, one epoch and 1,024-token samples. A `--smoke-test` run uses a tiny random CPU model and is **not** policy SFT; evaluation refuses that adapter. All output paths must be fresh. The compact result table, evidence locations and known gaps are in [docs/results_fast_completion.md](docs/results_fast_completion.md).
+The configured full run uses Qwen2.5-1.5B, q/v LoRA rank 8, one epoch and 1,024-token samples. A `--smoke-test` run uses a tiny random CPU model and is **not** policy SFT; evaluation refuses that adapter. All output paths must be fresh. The pre-SFT checkpoint is in [docs/results_fast_completion.md](docs/results_fast_completion.md), and the completed training, final same-machine table and returned artifact locations are in [docs/results_m5_sft_lab95.md](docs/results_m5_sft_lab95.md).
 
 ## References
 

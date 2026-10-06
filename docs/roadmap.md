@@ -38,12 +38,12 @@ Experiment slot: task success, constraint satisfaction, and recovery rate.
 
 ## Phase 6 — Agent Post-training
 
-Verified v2 trajectories and assistant-only LoRA training/evaluation entries are implemented. Tiny random-model CPU software verification is complete; actual Qwen adapter training still requires the user's resource confirmation. Reinforcement learning is outside the current project scope.
+Verified v2 trajectories and assistant-only LoRA training/evaluation entries are implemented. After explicit lab95 approval, real Qwen adapter training completed: one epoch over 608 actions, validation NLL 0.6410 to 0.0382. Raw SFT passed 4/12 same-subset task contracts versus Prompt 0/12 and Fixed 12/12, so it is not the default policy. See [the actual SFT report](results_m5_sft_lab95.md). Reinforcement learning is outside the current project scope.
 
 Experiment slot: training data version, policy changes, and safety checks.
 
 ## Phase 7 — Evaluation and Ablation
 
-Minimal comparisons across real retrieval sources, policy types, finish verification and recovery are recorded in [results_fast_completion.md](results_fast_completion.md). Add the real SFT row after approved training; broader task sets and uncertainty estimates are later refinements.
+Minimal comparisons across real retrieval sources, policy types, finish verification and recovery are recorded in [results_fast_completion.md](results_fast_completion.md), with the actual same-machine SFT row and returned artifacts in [results_m5_sft_lab95.md](results_m5_sft_lab95.md). Broader task sets and uncertainty estimates are later refinements.
 
 Experiment slot: final tables, confidence intervals, and failure analysis.

@@ -1,5 +1,7 @@
 # Minimal completion checkpoint — 2026-10-06
 
+This document preserves the **pre-SFT** local checkpoint. The subsequently approved lab95 training, final same-machine comparison and automatic artifact return are complete and documented in [results_m5_sft_lab95.md](results_m5_sft_lab95.md); statements below that training awaits approval describe the earlier checkpoint only.
+
 The goal of this increment is a small, executable research pipeline using the existing catalog and models. It does not add a frontend, another foundation model, RL or elaborate re-ranking. Real SFT is the remaining acceptance gate, not an already completed experiment.
 
 ## Actual dual retrieval
