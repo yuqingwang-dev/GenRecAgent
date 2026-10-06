@@ -4,6 +4,26 @@ GenRecAgent is a research project for personalized e-commerce recommendation wit
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
+## Start here — real-data delivery entry
+
+On this machine, the prepared data, retrieval checkpoint and returned SFT adapter are already present:
+
+```powershell
+conda activate genrecagent
+$env:PYTHONNOUSERSITE = "1"
+$env:OMP_NUM_THREADS = "4"
+$env:OPENBLAS_NUM_THREADS = "4"
+python scripts/run_project.py check
+python scripts/run_project.py demo
+python scripts/run_project.py report
+```
+
+`check` reports missing files/dependencies/CUDA without downloading anything. `demo` runs real-catalog hybrid, cold-start and infeasible-budget scenarios, defaulting to Fixed. `report` aggregates existing frozen experiments into Markdown/JSON, keeping retrieval test results, validation-only fusion and synthetic policy task metrics separate. Fresh timestamped output directories are selected automatically; previous runs are never overwritten. The report command does not require CUDA, but needs the existing evidence and trained adapter for checksum verification.
+
+For the opt-in trained policy: `python scripts/run_project.py demo --policy sft --scenario hybrid`. To verify all cached Qwen files: `python scripts/run_project.py check --policy sft --verify-hashes`. These commands perform checks/inference only, not training. Heavy artifacts are ignored by Git, so a fresh public clone is not automatically demo-ready.
+
+The current local delivery outputs are `outputs/project_delivery/demo/` and `outputs/project_delivery/report/`. Read the [Chinese usage and project explanation](docs/project_delivery_zh.md) or the [actual SFT evidence](docs/results_m5_sft_lab95.md). The old `run_demo.py` entry below is explicitly the Phase 0 mock, not this real-data demo.
+
 ## Motivation
 
 Modern recommendation systems increasingly need to understand natural-language intent, combine retrieval strategies, respect constraints, and recover from invalid intermediate results. GenRecAgent provides a clean research surface for those questions without coupling the core agent loop to a particular LLM, vector database, or training framework.
@@ -11,16 +31,16 @@ Modern recommendation systems increasingly need to understand natural-language i
 ## Architecture
 
 ```text
-UserRequest
-    -> Planner
-    -> Router
-    -> Executor -> FilterTool / RetrievalTool / RankingTool
-    -> Verifier
-       | success -> final response
-       | failure -> bounded re-plan
+Text + observed history + explicit constraints
+    -> intent/constraint normalization
+    -> next-action policy: Fixed / raw Qwen Prompt / Qwen + LoRA
+    -> ToolEnvironment -> real Dense / Transformer / Popularity retrieval
+    -> filter -> rank -> verify
+       | verified and sufficient -> finish
+       | failure/shortfall -> bounded recovery or clarify
 ```
 
-The diagram above is the Phase 0 mock loop. The real-data multi-step entry is `scripts/run_tool_agent.py`: it reads history, calls actual Dense/Transformer/Popularity retrieval, filters and ranks candidates, verifies the result and terminates or recovers within a step budget. Fixed orchestration and raw Qwen policy are evaluated separately; a deterministic teacher is not presented as learned planning. See [the current completion report](docs/results_fast_completion.md).
+The diagram describes the real-data path, not the Phase 0 mock. `scripts/run_tool_agent.py` implements one request; `scripts/run_project.py` wraps readiness, preset demonstrations and evidence aggregation. Fixed orchestration and raw Qwen policies are evaluated separately; no hidden Fixed fallback is counted as raw SFT success. State constraints remain immutable throughout the ten-action budget. See [the current SFT report](docs/results_m5_sft_lab95.md).
 
 ## Current Status
 
@@ -54,12 +74,12 @@ The minimum experimental chain now includes actual SFT, paired policy comparison
 ## Project Structure
 
 ```text
-configs/                 Runtime configuration placeholders
+configs/                 Retrieval, model and SFT configurations
 data/                    Ignored raw/processed data directories
 docs/                    Architecture and roadmap notes
-scripts/                 Safe local demo and future experiment entry points
+scripts/                 Delivery, data preparation, training and evaluation entries
 src/genrecagent/         Package code
-tests/                   Phase 0 through M4 unit/integration tests
+tests/                   Phase 0 through SFT/delivery unit/integration tests
 outputs/                 Ignored experiment records
 artifacts/               Ignored local model cache
 ```

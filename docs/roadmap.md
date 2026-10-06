@@ -47,3 +47,7 @@ Experiment slot: training data version, policy changes, and safety checks.
 Minimal comparisons across real retrieval sources, policy types, finish verification and recovery are recorded in [results_fast_completion.md](results_fast_completion.md), with the actual same-machine SFT row and returned artifacts in [results_m5_sft_lab95.md](results_m5_sft_lab95.md). Broader task sets and uncertainty estimates are later refinements.
 
 Experiment slot: final tables, confidence intervals, and failure analysis.
+
+## Minimal delivery checkpoint
+
+The local minimum research version has a single `check / demo / report` entry, three exercised real-catalog demonstrations, automatic frozen-metric aggregation and a [Chinese presentation guide](project_delivery_zh.md). Fixed remains the reliable default; model branches remain explicit experiments. Broader learned-policy quality, independent language evaluation and public release are subsequent work, not claimed complete by this software checkpoint.

@@ -32,7 +32,7 @@ Amazon Reviews 2023 / All_Beauty
 
 The NumPy exact backend has been exercised with deterministic vectors and the real All_Beauty catalog. The optional FAISS backend uses `IndexFlatIP`, not an approximate index, but was not installed or measured in this run. Item IDs and metadata are persisted next to the vectors; reloading is checked in a fixture test and in the real evaluation. BGE encoding and direct official JSONL/Parquet ingestion ran locally; the primary real metrics are recorded in [results_m1_full.md](results_m1_full.md), with a separate development subset in [results_m1.md](results_m1.md).
 
-Review timestamps establish within-user order only. The catalog is treated as a static offline universe. Train-only popularity is safe under that protocol, while cross-user global temporal separation and historical catalog availability are not guaranteed. Semantic ID training is a separate M2 path; task-specific policy fine-tuning remains a future component.
+Review timestamps establish within-user order only. The catalog is treated as a static offline universe. Train-only popularity is safe under that protocol, while cross-user global temporal separation and historical catalog availability are not guaranteed. Semantic ID training is a separate M2 path; the actual policy fine-tuning path is described below.
 
 ## M2 item Semantic ID path (full-catalog comparison verified)
 
@@ -59,3 +59,15 @@ Two scorer implementations exist: a train-only count transition baseline ([resul
 The curated development/held-out task specification is separate from the parser. Its grader checks manual labels and raw item metadata without calling the agent's eligibility helper. [results_m4_constraints.md](results_m4_constraints.md) records the controlled-language scope and evidence.
 
 `LocalQwenLLM` implements the provider-neutral model interface using an immutable cached snapshot and bounded greedy generation. `LLMToolPolicy` checks one declared JSON function schema, grounds budget parameters in the input, applies known capability/route checks, and allows one repair before rule fallback. It supplies a typed `ParsedIntent` to the existing execution layer; the model does not produce final catalog items. Raw first decisions and repaired/guarded results are evaluated separately, and independent grading time is excluded from request timing. [results_m4_llm_policy.md](results_m4_llm_policy.md) records the actual local model run and the remaining raw-policy failures.
+
+## Current real-tool action-policy and SFT boundary
+
+`ToolEnvironment` owns the goal, catalog eligibility, retrieved source pools, immutable observable snapshots, rank/verification state and execution budget. The policy proposes only a checked JSON action; it cannot change the goal or invent final products. `FixedStepPolicy` is deterministic state-aware orchestration. `QwenStepPolicy` runs either the base model or its genuinely trained LoRA adapter, with no hidden Fixed fallback credited to raw policy results. Nine physical actions provide history, three retrieval sources, filtering, ranking, verification, finish and clarification. Failed actions become observations; unchanged repeated actions are rejected. Finish requires enough verified candidates. The deadline is checked between actions, not an OS hard interrupt.
+
+`DualRetriever` uses BGE item vectors and the frozen full-trained M3 Transformer. Generated Semantic IDs are catalog-valid and collision-expanded before item-level weighted reciprocal-rank fusion. Train-only Popularity is a recovery/cold-start source. Recall/NDCG and task-contract metrics are kept separate.
+
+Executed teacher traces generate corrected v2 action supervision with disjoint users/price/goal groups. Only assistant targets are supervised. `assistant_action_loss` attends to full context but projects only logits that can contribute to the causal action loss; tests verify loss and gradient equivalence. The actual one-epoch Qwen LoRA run and weak held-out performance are preserved in [results_m5_sft_lab95.md](results_m5_sft_lab95.md).
+
+## Delivery surface
+
+`run_project.py check` checks artifacts, runtime and optional full cached-model hashes without downloads. `demo` invokes the existing real Agent in three preset scenarios and independently grades the products against catalog metadata. `report` reads existing metrics, rejects mismatched policy task IDs/source/model hashes or a mismatched adapter, and renders separate test-retrieval, validation-fusion and synthetic-policy sections. It does not rerun benchmarks or tune the models. All generated outputs must be in a fresh subdirectory of this project's `outputs/`; the separate RecAI project is not a dependency.
