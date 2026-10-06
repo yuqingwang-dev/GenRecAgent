@@ -1,0 +1,15 @@
+data_dir: data/processed/tool_sft_v2
+output_dir: outputs/tool_sft_lora
+model_name: Qwen/Qwen2.5-1.5B-Instruct
+revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+cache_dir: artifacts/model_cache
+epochs: 1
+learning_rate: 0.0002
+gradient_accumulation: 8
+max_sequence_length: 1024
+rank: 8
+lora_alpha: 16
+target_modules: [q_proj, v_proj]
+seed: 42
+device: cuda
+dtype: bfloat16
