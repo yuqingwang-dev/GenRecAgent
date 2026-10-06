@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>GenRecAgent · 真实工具轨迹回放</title>
+<style>
+:root{color-scheme:light;--ink:#172235;--muted:#617087;--line:#dde3ed;--accent:#6851d8;--soft:#eeebfc;--green:#197451}
+*{box-sizing:border-box}body{margin:0;background:#f4f6fb;color:var(--ink);font-family:"Microsoft YaHei",system-ui,sans-serif;font-size:14px;line-height:1.65}
+header{background:#172235;color:white;padding:24px 34px;display:flex;justify-content:space-between;gap:18px;align-items:center}
+header strong{font-size:25px;letter-spacing:-.5px}header p{margin:3px 0 0;color:#c2cede}.badge{border:1px solid #67748b;border-radius:30px;padding:5px 12px;white-space:nowrap}
+main{max-width:1280px;padding:25px 30px 35px;margin:auto}.intro{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:20px}
+h1{font-size:23px;margin:0 0 5px}h2{font-size:17px;margin:0 0 12px}p{margin:0}.muted{color:var(--muted)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}button,select{font:inherit;border:1px solid var(--line);background:white;padding:9px 14px;border-radius:9px;color:var(--ink)}
+button{cursor:pointer}button:focus-visible,select:focus-visible{outline:3px solid #b2a7f3;outline-offset:2px}button[aria-pressed=true],.primary{background:var(--accent);color:white;border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:1.1fr 1fr;gap:20px}.card{background:white;border:1px solid var(--line);border-radius:14px;padding:21px}.wide{grid-column:1/-1}
+.context{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 17px}.pill{background:#edf1f7;color:#44516a;border-radius:6px;padding:4px 9px}.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.progress{height:5px;border-radius:6px;background:#e9edf4;margin:18px 0}.progress span{display:block;height:100%;background:var(--accent);width:0;transition:width .18s}
+ol{list-style:none;padding:0;margin:0;display:grid;gap:7px}.step{display:flex;gap:12px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;color:var(--muted)}
+.step .num{border:1px solid var(--line);width:25px;height:25px;border-radius:50%;text-align:center;flex-shrink:0}.step.done{color:var(--green);background:#f5fbf8;border-color:#cce4d7}
+.step.active{background:var(--soft);color:var(--accent);border-color:#b6a8f2}.step strong{font-size:13px;font-family:ui-monospace,monospace}.step small{display:block}
+.observation{margin-top:16px;background:#f6f8fc;border-radius:9px;padding:13px;min-height:80px}.observation strong{display:block;margin-bottom:5px}
+.product{padding:13px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}.product:last-child{border:0}.product .price{font-weight:700;color:var(--green);margin-left:auto;white-space:nowrap}
+.product .index{color:var(--muted);font-size:12px;padding-top:3px}.product strong{display:block;font-size:13px;line-height:1.55}.product small{color:var(--muted);font-family:ui-monospace,monospace}
+.empty{padding:34px 16px;text-align:center;border:1px dashed var(--line);border-radius:10px;background:#f9fafe;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat{background:#f6f8fc;border-radius:10px;padding:14px}.stat b{display:block;font-size:24px}.stat small{color:var(--muted)}
+.notice{border-left:3px solid #bb8841;background:#fcf8f1;color:#695333;padding:12px 15px;margin-top:17px}.foot{margin-top:16px;font-size:12px;color:var(--muted)}
+@media(max-width:800px){header{padding:18px;align-items:flex-start}header strong{font-size:21px}main{padding:20px 16px}.intro{display:block}.tabs{margin-top:15px}.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.wide{grid-column:auto}.card{padding:16px}}
+</style>
+</head>
+<body>
+<header><div><strong>GenRecAgent</strong><p>Generative retrieval · Tool execution · Verified outcomes</p></div><span class="badge">归档轨迹回放 / 非实时推理</span></header>
+<main>
+<section class="intro"><div><h1>从召回到验证，看清每一步</h1><p class="muted">回放真实商品目录工具执行结果。无需服务、GPU 或网络；动画时长不是实际推理耗时。</p></div><nav class="tabs" aria-label="演示场景" id="tabs"></nav></section>
+<div class="grid">
+<section class="card"><h2 id="scenarioTitle">工具执行轨迹</h2><p class="muted" id="description"></p><div class="context" id="context"></div>
+<div class="controls"><button class="primary" id="play">开始回放</button><button id="next">下一步</button><button id="reset">重置</button><select id="speed" aria-label="动画速度"><option value="850">1× 动画</option><option value="425">2× 动画</option><option value="1700">0.5× 动画</option></select><span class="muted" id="counter"></span></div>
+<div class="progress" aria-hidden="true"><span id="bar"></span></div><ol id="timeline"></ol>
+<div class="observation" aria-live="polite"><strong id="currentTool">等待开始</strong><span id="observation">选择场景后开始，或逐步查看工具观测。</span></div></section>
+<section class="card"><h2>最终验证结果</h2><p class="muted" id="outcome">执行完成后显示商品或澄清结果。</p><div id="products" style="margin-top:15px"></div><p class="foot">价格来自离线 metadata，不是实时商城报价。商品仅作为软件回放示例。</p></section>
+<section class="card wide"><h2>正式实验结果与边界</h2><div class="stats" id="stats"></div>
+<div class="notice" id="notice">默认演示是确定性 Fixed 策略；模型结果由冻结评测记录提供。</div>
+<p class="foot">三种预设回放不是新的 benchmark；不代表广泛自然语言理解、线上收益或生产可用性。完整结果表见分享包 evidence/results.md。</p></section>
+</div></main>
+<script>
+"use strict";
+const data = __GENREC_REPLAY_DATA__;
+const labels={hybrid:"双路推荐",cold:"冷启动",impossible:"预算无解"};
+const toolLabels={read_history:"读取历史",retrieve_dense:"Dense 召回",retrieve_generative:"Transformer 召回",retrieve_popular:"训练期热门召回",filter_candidates:"约束过滤",rank_candidates:"排序",verify_candidates:"独立结果校验",finish:"返回已验证商品",clarify:"安全澄清"};
+let selected=0,index=0,timer=null;
+const byId=id=>document.getElementById(id);
+function element(tag,text,cls){const node=document.createElement(tag);node.textContent=text;if(cls)node.className=cls;return node;}
+function stop(){if(timer!==null)clearTimeout(timer);timer=null;byId("play").textContent="开始回放";}
+function render(){const row=data.scenarios[selected];byId("scenarioTitle").textContent=labels[row.name]+" · "+row.steps.length+" 步";
+byId("description").textContent=row.description;byId("counter").textContent=index+" / "+row.steps.length;
+byId("bar").style.width=(100*index/row.steps.length)+"%";
+byId("context").replaceChildren(element("span","Fixed 策略","pill"),element("span","预算 ≤ $"+row.max_price,"pill"),element("span",row.history_present?"有已观察历史":"无历史 / 冷启动","pill"));
+byId("timeline").replaceChildren(...row.steps.map((step,i)=>{const li=element("li","","step"+(i<index?" done":"")+(i===index-1?" active":""));li.append(element("span",i<index?"✓":String(i+1),"num"));const text=element("div","");text.append(element("strong",step.tool),element("small",toolLabels[step.tool]||step.tool));li.append(text);return li;}));
+const step=index?row.steps[index-1]:null;byId("currentTool").textContent=step?(toolLabels[step.tool]||step.tool):"等待开始";
+byId("observation").textContent=step?step.observation:"选择场景后开始，或逐步查看工具观测。";
+const completed=index===row.steps.length;byId("products").replaceChildren();
+if(!completed){byId("outcome").textContent="尚未达到结束校验，不展示候选为最终推荐。";byId("products").append(element("div","等待过滤、排序和校验。","empty"));}
+else if(row.status==="clarification"){byId("outcome").textContent="澄清完成 · 没有放宽预算约束";byId("products").append(element("div","合格目录商品不足，不返回伪造商品。","empty"));}
+else{byId("outcome").textContent="已验证 · "+row.products.length+" 件商品 · 元数据价格符合预算";row.products.forEach((product,i)=>{const card=element("div","","product");const body=element("div","");body.append(element("strong",product.title),element("small",product.item_id));card.append(element("span",String(i+1).padStart(2,"0"),"index"),body,element("span","$"+Number(product.metadata_price).toFixed(2),"price"));byId("products").append(card);});}
+document.querySelectorAll("#tabs button").forEach((button,i)=>button.setAttribute("aria-pressed",String(i===selected)));}
+function advance(){if(index<data.scenarios[selected].steps.length){index++;render();}if(index===data.scenarios[selected].steps.length)stop();}
+function tick(){advance();if(index<data.scenarios[selected].steps.length)timer=setTimeout(tick,Number(byId("speed").value));}
+data.scenarios.forEach((row,i)=>{const button=element("button",labels[row.name]);button.addEventListener("click",()=>{stop();selected=i;index=0;render();});byId("tabs").append(button);});
+byId("play").addEventListener("click",()=>{if(timer!==null){stop();return;}if(index===data.scenarios[selected].steps.length)index=0;byId("play").textContent="暂停";timer=setTimeout(tick,0);});
+byId("next").addEventListener("click",()=>{stop();advance();});byId("reset").addEventListener("click",()=>{stop();index=0;render();});
+byId("speed").addEventListener("change",()=>{if(timer!==null){clearTimeout(timer);timer=setTimeout(tick,Number(byId("speed").value));}});
+[[data.catalog_items.toLocaleString(),"商品目录"],[data.users.toLocaleString(),"推荐评测用户"],[data.fixed_contracts,"Fixed · 合成任务"],[data.sft_contracts,"SFT · 合成任务"]].forEach(([value,label])=>{const card=element("div","","stat");card.append(element("b",value),element("small",label));byId("stats").append(card);});
+byId("notice").textContent="默认演示是确定性 Fixed 策略。正式小样本 SFT 通过 "+data.sft_contracts+"，实际填满 "+data.sft_feasible_fills+" 个可行推荐；另有 "+data.sft_correct_clarifications+" 次正确澄清。不能把演示通过率当作模型自主规划能力。";
+render();
+</script>
+</body></html>

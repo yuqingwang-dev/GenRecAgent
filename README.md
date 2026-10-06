@@ -24,6 +24,8 @@ For the opt-in trained policy: `python scripts/run_project.py demo --policy sft 
 
 The current local delivery outputs are `outputs/project_delivery/demo/` and `outputs/project_delivery/report/`. Read the [Chinese usage and project explanation](docs/project_delivery_zh.md) or the [actual SFT evidence](docs/results_m5_sft_lab95.md). The old `run_demo.py` entry below is explicitly the Phase 0 mock, not this real-data demo.
 
+For a lightweight local reviewer snapshot, run `python scripts/package_project.py` from a clean committed working tree. It creates a ZIP and self-contained HTML replay of the saved real-tool demos, with no weights, raw data, logs or Git history. It does not upload or publish anything. See [the sharing scope](docs/share_package_zh.md) and [resume/presentation draft](docs/resume_project_zh.md). The replay is explicitly archived execution, not live inference or a new benchmark.
+
 ## Motivation
 
 Modern recommendation systems increasingly need to understand natural-language intent, combine retrieval strategies, respect constraints, and recover from invalid intermediate results. GenRecAgent provides a clean research surface for those questions without coupling the core agent loop to a particular LLM, vector database, or training framework.
