@@ -16,9 +16,15 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from genrecagent.agent.compact_policy import PROTOCOL, CompactQwenStepPolicy
 from genrecagent.agent.constraints import PriceLimit
 from genrecagent.agent.guarded_policy import run_guarded_agent
-from genrecagent.agent.policy_modes import GUARDED_POLICIES
+from genrecagent.agent.policy_modes import (
+    COMPACT_POLICIES,
+    GUARDED_POLICIES,
+    POLICY_CHOICES,
+    SFT_POLICIES,
+)
 from genrecagent.agent.tool_environment import (
     FixedStepPolicy,
     QwenStepPolicy,
@@ -46,10 +52,9 @@ class NoFinishVerification(ToolEnvironment):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--policy", choices=["fixed", "prompt", "sft", *GUARDED_POLICIES], default="fixed"
-    )
+    parser.add_argument("--policy", choices=POLICY_CHOICES, default="fixed")
     parser.add_argument("--split", choices=["validation", "test"], default="test")
+    parser.add_argument("--data-dir", type=Path)
     parser.add_argument("--max-model-rejections", type=int, default=2)
     parser.add_argument("--adapter", type=Path)
     parser.add_argument("--max-tasks", type=int, default=12)
@@ -59,11 +64,18 @@ def main() -> None:
     )
     args = parser.parse_args()
     guarded = args.policy in GUARDED_POLICIES
-    sft = args.policy in {"sft", "guarded_sft"}
+    sft = args.policy in SFT_POLICIES
+    compact = args.policy in COMPACT_POLICIES
+    if args.data_dir is None:
+        args.data_dir = ROOT / (
+            "data/processed/tool_sft_recovery_v3" if compact else "data/processed/tool_sft_v2"
+        )
     if guarded and (not 1 <= args.max_model_rejections <= 10 or args.ablation != "none"):
         parser.error("Guarded policies need rejection budget [1,10] and ablation=none")
     if args.policy == "guarded_sft" and args.adapter is None:
         args.adapter = ROOT / DEFAULT_ADAPTER
+    if args.policy == "compact_sft" and args.adapter is None:
+        args.adapter = ROOT / "outputs/tool_sft_recovery_v3_server/tool_sft_recovery_v3/adapter"
     if args.adapter is not None and not sft:
         parser.error("Only an SFT policy may load an adapter")
     if not torch.cuda.is_available():
@@ -80,6 +92,7 @@ def main() -> None:
                 "scripts/evaluate_tool_agent.py",
                 "src/genrecagent/agent/tool_environment.py",
                 "src/genrecagent/agent/guarded_policy.py",
+                "src/genrecagent/agent/compact_policy.py",
                 "src/genrecagent/llm/local_qwen.py",
                 "configs/llm_policy.yaml",
             )
@@ -95,12 +108,14 @@ def main() -> None:
         training = json.loads((args.adapter.parent / "metrics.json").read_text())
         if training["status"] != "full_sft":
             raise ValueError("A software smoke adapter is not a full SFT result")
+        if compact and training.get("input_protocol") != PROTOCOL:
+            raise ValueError("Compact SFT requires a genuinely trained compact-protocol adapter")
         readiness = check_artifacts(ROOT, policy="sft", adapter=args.adapter)
         if not readiness["ready"]:
             raise ValueError("; ".join(readiness["problems"]))
     resources = load_dual_resources(ROOT)
     items = load_items(ROOT / "data/processed/All_Beauty_full_optimized")
-    path = ROOT / f"data/processed/tool_sft_v2/{args.split}_tasks.jsonl"
+    path = args.data_dir / f"{args.split}_tasks.jsonl"
     rows = sorted(
         read_jsonl(path), key=lambda row: hashlib.sha256(row["task_id"].encode()).hexdigest()
     )
@@ -110,7 +125,10 @@ def main() -> None:
     policy = FixedStepPolicy()
     if args.policy != "fixed":
         config = yaml.safe_load((ROOT / "configs/llm_policy.yaml").read_text(encoding="utf-8"))
-        policy = QwenStepPolicy(
+        if compact:
+            config.update(dtype="bfloat16", max_input_tokens=1024, max_new_tokens=96)
+        policy_class = CompactQwenStepPolicy if compact else QwenStepPolicy
+        policy = policy_class(
             LocalQwenLLM(
                 **{
                     key: config[key]
@@ -179,6 +197,8 @@ def main() -> None:
         else f"{args.split}: fixed hash-selected held-out subset",
         "split": args.split,
         "input_scope": "normalized intent/budget/category and observed tool state",
+        "input_protocol": PROTOCOL if compact else "legacy_tool_state_v2",
+        "task_data_dir": str(args.data_dir),
         "tasks": len(rows),
         "contract_pass": sum(passed),
         "contract_pass_rate": mean(passed),

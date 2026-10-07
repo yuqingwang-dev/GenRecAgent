@@ -23,6 +23,33 @@ class GenerationRecord:
 class LocalQwenLLM(BaseLLM):
     """Load only the pinned local snapshot; no provider key or service is required."""
 
+    @classmethod
+    def from_loaded_model(cls, model, tokenizer, *, device: str, model_name: str, revision: str):
+        """Use an already loaded model for validation rollouts; do not reload weights."""
+        import torch
+        from transformers import GenerationConfig
+
+        instance = cls.__new__(cls)
+        instance.torch, instance.model, instance.tokenizer = torch, model, tokenizer
+        instance.model_name, instance.revision, instance.device = model_name, revision, device
+        instance.max_input_tokens, instance.max_new_tokens = 1024, 96
+        instance.generation_config = GenerationConfig(
+            max_new_tokens=96,
+            do_sample=False,
+            use_cache=True,
+            eos_token_id=model.generation_config.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+        )
+        instance.last_generation = None
+        instance.runtime = {
+            "provider": "loaded_local_qwen",
+            "model_name": model_name,
+            "revision": revision,
+            "device": device,
+            "do_sample": False,
+        }
+        return instance
+
     def __init__(
         self,
         *,
@@ -132,6 +159,9 @@ class LocalQwenLLM(BaseLLM):
 
     def generate(self, prompt: str) -> str:
         return self._generate([{"role": "user", "content": prompt}])
+
+    def chat(self, messages: list[dict[str, str]]) -> str:
+        return self._generate(messages)
 
     def tool_call(self, prompt: str, tools: list[dict[str, Any]]) -> dict[str, Any]:
         return decode_tool_json(self._generate(tool_messages(prompt, tools)))

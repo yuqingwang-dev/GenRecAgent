@@ -17,9 +17,15 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from genrecagent.agent.action_loss import assistant_action_loss
+from genrecagent.agent.rollout_validation import (
+    evaluate_raw_rollouts,
+    selection_score,
+    validation_subset,
+)
 from genrecagent.agent.trajectory_data import action_tokens
-from genrecagent.data.storage import read_jsonl
-from genrecagent.retrieval.hybrid_loader import file_sha256
+from genrecagent.data.storage import load_items, read_jsonl
+from genrecagent.llm.local_qwen import LocalQwenLLM
+from genrecagent.retrieval.hybrid_loader import file_sha256, load_dual_resources
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -30,7 +36,8 @@ def evaluate_loss(model, rows, device):
     with torch.no_grad():
         for row in rows:
             count = sum(label != -100 for label in row["labels"])
-            loss = float(assistant_action_loss(model, row, device))
+            unweighted = {"input_ids": row["input_ids"], "labels": row["labels"]}
+            loss = float(assistant_action_loss(model, unweighted, device))
             if not math.isfinite(loss):
                 raise ValueError("Nonfinite validation loss")
             total += loss * count
@@ -52,7 +59,7 @@ def main() -> None:
     output = args.output_dir or ROOT / config["output_dir"]
     if output.exists() and any(output.iterdir()):
         parser.error("Output directory must be empty")
-    from peft import LoraConfig, get_peft_model
+    from peft import LoraConfig, PeftModel, get_peft_model
     from transformers import AutoModelForCausalLM, AutoTokenizer, Qwen2Config
 
     random.seed(config["seed"])
@@ -73,7 +80,8 @@ def main() -> None:
         local_files_only=True,
         trust_remote_code=False,
     )
-    manifest = None
+    manifest, initial_adapter_hash = None, None
+    rollout_rows, rollout_resources, rollout_items = None, None, None
     if args.smoke_test:
         device = "cpu"
         model = AutoModelForCausalLM.from_config(
@@ -91,7 +99,12 @@ def main() -> None:
             {"role": "user", "content": "Choose a tool."},
             {"role": "assistant", "content": '{"name":"read_history","arguments":{}}'},
         ]
-        train_rows = [action_tokens(tokenizer, messages) for _ in range(2)]
+        train_rows = [
+            action_tokens(
+                tokenizer, messages, action_name_weight=config.get("action_name_weight", 1.0)
+            )
+            for _ in range(2)
+        ]
         validation_rows = train_rows[:1]
     else:
         device = config["device"]
@@ -103,6 +116,8 @@ def main() -> None:
             raise ValueError("Use corrected v2 immutable-observation trajectories")
         if manifest["base_revision"] != config["revision"]:
             raise ValueError("SFT data and model revision differ")
+        if config.get("input_protocol") != manifest.get("input_protocol"):
+            raise ValueError("Training data and inference input protocols differ")
         groups = {
             split: set(manifest["splits"][split]["user_groups"])
             for split in ("train", "validation", "test")
@@ -118,10 +133,24 @@ def main() -> None:
             if file_sha256(path) != manifest["splits"][split]["actions_sha256"]:
                 raise ValueError("SFT data hash changed")
             encoded[split] = [
-                action_tokens(tokenizer, row["messages"], max_length=config["max_sequence_length"])
+                action_tokens(
+                    tokenizer,
+                    row["messages"],
+                    max_length=config["max_sequence_length"],
+                    action_name_weight=config.get("action_name_weight", 1.0),
+                )
                 for row in read_jsonl(path)
             ]
         train_rows, validation_rows = encoded["train"], encoded["validation"]
+        if config.get("selection") == "validation_rollout":
+            path = data / "validation_tasks.jsonl"
+            if file_sha256(path) != manifest["splits"]["validation"]["task_sha256"]:
+                raise ValueError("Validation rollout task hash changed")
+            rollout_rows = validation_subset(
+                list(read_jsonl(path)), count=config["validation_rollout_tasks"]
+            )
+            rollout_resources = load_dual_resources(ROOT, device=device)
+            rollout_items = load_items(ROOT / "data/processed/All_Beauty_full_optimized")
         model = AutoModelForCausalLM.from_pretrained(
             str(snapshot),
             revision=config["revision"],
@@ -130,16 +159,24 @@ def main() -> None:
             trust_remote_code=False,
             dtype=getattr(torch, config["dtype"]),
         )
-    model = get_peft_model(
-        model,
-        LoraConfig(
-            r=config["rank"],
-            lora_alpha=config["lora_alpha"],
-            target_modules=config["target_modules"],
-            bias="none",
-            task_type="CAUSAL_LM",
-        ),
-    ).to(device)
+    if not args.smoke_test and config.get("initial_adapter"):
+        initial = ROOT / config["initial_adapter"]
+        previous = json.loads((initial.parent / "metrics.json").read_text(encoding="utf-8"))
+        initial_adapter_hash = file_sha256(initial / "adapter_model.safetensors")
+        if previous["status"] != "full_sft" or initial_adapter_hash != previous["adapter_sha256"]:
+            raise ValueError("Initial adapter is not the checked real SFT artifact")
+        model = PeftModel.from_pretrained(model, initial, is_trainable=True).to(device)
+    else:
+        model = get_peft_model(
+            model,
+            LoraConfig(
+                r=config["rank"],
+                lora_alpha=config["lora_alpha"],
+                target_modules=config["target_modules"],
+                bias="none",
+                task_type="CAUSAL_LM",
+            ),
+        ).to(device)
     if not args.smoke_test:
         model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
         model.enable_input_require_grads()
@@ -151,7 +188,7 @@ def main() -> None:
     optimizer = torch.optim.AdamW(parameters, lr=config["learning_rate"])
     accumulation = 1 if args.smoke_test else config["gradient_accumulation"]
     epochs = 1 if args.smoke_test else config["epochs"]
-    started, log, best = perf_counter(), [], float("inf")
+    started, log, best, best_score, selected_epoch = perf_counter(), [], float("inf"), None, None
     output.mkdir(parents=True, exist_ok=True)
     before = evaluate_loss(model, validation_rows, device)
     print(
@@ -183,9 +220,28 @@ def main() -> None:
                 )
         validation = evaluate_loss(model, validation_rows, device)
         record = {"epoch": epoch, "train_nll": total / count, "validation_nll": validation}
+        if config.get("action_name_weight", 1.0) != 1:
+            record["train_weighted_action_loss"] = record.pop("train_nll")
+        rollout = None
+        if rollout_rows is not None:
+            model.eval()
+            model.disable_input_require_grads()
+            llm = LocalQwenLLM.from_loaded_model(
+                model,
+                tokenizer,
+                device=device,
+                model_name=config["model_name"],
+                revision=config["revision"],
+            )
+            rollout = evaluate_raw_rollouts(llm, rollout_resources, rollout_items, rollout_rows)
+            model.enable_input_require_grads()
+            model.train()
+            record["validation_raw_rollout"] = rollout
         log.append(record)
-        if validation < best:
-            best = validation
+        score = selection_score(rollout, validation) if rollout is not None else (-validation,)
+        best = min(best, validation)
+        if best_score is None or score > best_score:
+            best_score, selected_epoch = score, epoch
             model.save_pretrained(output / "adapter", safe_serialization=True)
             tokenizer.save_pretrained(output / "adapter")
         print(json.dumps(record), flush=True)
@@ -196,6 +252,11 @@ def main() -> None:
         "trainable_parameters": sum(p.numel() for p in parameters),
         "initial_validation_nll": before,
         "best_validation_nll": best,
+        "selected_epoch": selected_epoch,
+        "selection": config.get("selection", "validation_nll"),
+        "input_protocol": config.get("input_protocol"),
+        "action_name_weight": config.get("action_name_weight", 1.0),
+        "initial_adapter_sha256": initial_adapter_hash,
         "epochs": epochs,
         "assistant_only_labels": True,
         "action_logits_only": True,
