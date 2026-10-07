@@ -21,3 +21,7 @@ After approval, `run_lab95_recovery.sh` runs real training, full raw validation 
 Generated data: `data/processed/tool_sft_recovery_v3/manifest.json`. Local name-weighting/masking and data-isolation tests passed. On lab95, the random miniature-model CPU software test passed and the updated complete suite passed **120 tests**. An optional-runtime metadata bug in saved-index evaluation was fixed rather than installing an encoder unnecessarily. The full frozen dual-retrieval test completed on lab95 after a local Windows native-process crash; its result is kept separate from model-policy tasks.
 
 Compact Prompt validation is a same-protocol baseline, not SFT. It does not use test tasks or a controller. The old v2 results and model hashes remain available and are not relabeled as v3.
+
+The baseline finished at 0/72 contracts, with no feasible fills or correct clarifications. Its records, the 120-test pass log and the miniature CPU software check were automatically returned to `outputs/recovery_v3_pretraining_server`. This is not a trained v3 adapter. The requested lab95 real-training confirmation remains pending.
+
+Full frozen test retrieval completed for 8,151 users, with zero source failures: Dense Recall@20 0.036560; Transformer 0.002454; 50% Dense fusion 0.031407; 75% Dense fusion 0.036928. Source endpoints exactly reproduce the original test runs. The 75% setting adds only three net hits; no robust statistical gain is claimed and weights were not tuned on test. `outputs/dual_retrieval_frozen_test` contains all Recall/NDCG@5/10/20 and provenance.

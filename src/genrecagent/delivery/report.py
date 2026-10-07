@@ -55,12 +55,35 @@ def build_report(root: Path) -> dict:
         "code_transition": transition,
         "transformer": transformer,
     }
+    frozen_test_path = root / "outputs/dual_retrieval_frozen_test/metrics.json"
+    if frozen_test_path.exists():
+        frozen_test = read("outputs/dual_retrieval_frozen_test/metrics.json")
+        if frozen_test["status"] != "full_test_dual_retrieval" or frozen_test["split"] != "test":
+            raise ValueError("A complete test run is required for test fusion results")
+        if frozen_test["users"] != users or frozen_test["items"] != items:
+            raise ValueError("Frozen fusion test uses a different evaluation cohort")
+        for name, reference in (
+            ("dense", m1["test"]["methods"]["dense"]),
+            ("generative", transformer),
+        ):
+            if any(
+                frozen_test["methods"][name][key] != reference[key]
+                for key in ("Recall@20", "NDCG@20")
+            ):
+                raise ValueError("Test source endpoints do not reproduce their original baselines")
+        retrieval_test.update(
+            {
+                key: value
+                for key, value in frozen_test["methods"].items()
+                if key.startswith("hybrid_")
+            }
+        )
     return {
         "scope": "aggregation of frozen runs; no new training or benchmark evaluation",
         "users": users,
         "catalog_items": items,
         "retrieval_test": {
-            name: {key: row[key] for key in ("Recall@20", "NDCG@20")}
+            name: {key: row[key] for key in row if key.startswith(("Recall@", "NDCG@"))}
             for name, row in retrieval_test.items()
         },
         "dual_retrieval_validation_only": dual["methods"],
@@ -75,7 +98,8 @@ def build_report(root: Path) -> dict:
             f"SFT filled {policies['sft']['feasible_filled']}/{policies['sft']['feasible_tasks']} "
             "feasible requests and correctly clarified "
             f"{policies['sft']['correct_clarifications']}.",
-            "No hybrid test result, generative relevance gain, online impact or production claim.",
+            "Frozen hybrid test is reported when available; small differences are not robust gain, "
+            "online impact or production-readiness claims.",
             "Per-user chronological split and static catalog "
             "do not guarantee global temporal safety.",
         ],
