@@ -2,21 +2,22 @@
 # The caller must have obtained the user's approval for the bounded real training run.
 set -euo pipefail
 PYTHON="${1:?Pass the existing GenRecAgent environment Python executable}"
-[[ "${2:-}" == "--approved" ]] || { printf 'Real training needs explicit approval.\n' >&2; exit 64; }
+MODE="${2:-}"
+[[ "$MODE" == "--approved" || "$MODE" == "--check-only" ]] || { printf 'Use --check-only for read-only checks; real training needs explicit approval.\n' >&2; exit 64; }
 cd "$(dirname "$(realpath "$0")")/.."
 export PYTHONNOUSERSITE=1 OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 CUDA_VISIBLE_DEVICES=0
-mkdir -p outputs/recovery_job
+PREFLIGHT=$("$PYTHON" -u scripts/check_recovery_run.py)
+printf '%s\n' "$PREFLIGHT"
+[[ "$MODE" != "--check-only" ]] || exit 0
+mkdir outputs/recovery_job
 trap 'printf "%s\n" "$?" > outputs/recovery_job/exit_code.txt' EXIT
+printf '%s\n' "$PREFLIGHT" > outputs/recovery_job/preflight.json
 "$PYTHON" -u - <<'PY'
-import json, pathlib, torch
-root = pathlib.Path.cwd()
+import json, torch
 free, total = torch.cuda.mem_get_info()
 if not torch.cuda.is_bf16_supported() or free < 5.5 * 1024**3:
     raise RuntimeError("BF16 and 5.5 GiB free required; never interrupt other GPU users")
-m = json.loads((root / "data/processed/tool_sft_recovery_v3/manifest.json").read_text())
-if m["splits"]["train"]["assistant_actions"] > 1200:
-    raise RuntimeError("Training data exceeds the approved cap")
 print(json.dumps({"gpu":torch.cuda.get_device_name(0),"free_bytes":free,"total_bytes":total}), flush=True)
 PY
 "$PYTHON" -u scripts/train_tool_sft.py --config configs/tool_sft_recovery_v3.yaml \
