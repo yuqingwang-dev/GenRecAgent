@@ -30,6 +30,7 @@ def sha256(path: Path) -> str:
 def check_artifacts(
     root: Path, *, policy: str = "fixed", adapter: Path | None = None, verify_hashes: bool = False
 ) -> dict:
+    policy = policy.removeprefix("guarded_")
     if policy not in {"fixed", "prompt", "sft"}:
         raise ValueError("Unknown policy")
     problems, checked = [], []

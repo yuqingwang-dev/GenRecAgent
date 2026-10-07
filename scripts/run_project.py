@@ -11,6 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from genrecagent.agent.policy_modes import GUARDED_POLICIES
 from genrecagent.delivery.demo import grade_demo
 from genrecagent.delivery.readiness import DEFAULT_ADAPTER, check_artifacts, resolve_output
 from genrecagent.delivery.report import build_report, render_report
@@ -30,7 +31,7 @@ def readiness(args) -> dict:
     modules = ["numpy", "yaml", "torch"]
     if args.policy != "fixed":
         modules += ["transformers"]
-    if args.policy == "sft":
+    if args.policy in {"sft", "guarded_sft"}:
         modules += ["peft"]
     for name in modules:
         if importlib.util.find_spec(name) is None:
@@ -79,7 +80,7 @@ def run_demos(args, output: Path) -> dict:
         ]
         for item_id in scenario["history"]:
             command += ["--history-item", item_id]
-        if args.policy == "sft":
+        if args.policy in {"sft", "guarded_sft"}:
             command += ["--adapter", str(args.adapter)]
         with (output / f"{name}.log").open("w", encoding="utf-8") as log:
             subprocess.run(command, cwd=ROOT, env=env, stdout=log, stderr=log, check=True)
@@ -96,6 +97,7 @@ def run_demos(args, output: Path) -> dict:
             **grade,
             "trace_file": trace.name,
             "actions": [row["action"]["name"] for row in result["trace"]],
+            "guard": result.get("guard"),
             "products": [
                 {
                     "item_id": row["item_id"],
@@ -122,7 +124,9 @@ def run_demos(args, output: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["check", "demo", "report"])
-    parser.add_argument("--policy", choices=["fixed", "prompt", "sft"], default="fixed")
+    parser.add_argument(
+        "--policy", choices=["fixed", "prompt", "sft", *GUARDED_POLICIES], default="fixed"
+    )
     parser.add_argument("--adapter", type=Path, default=ROOT / DEFAULT_ADAPTER)
     parser.add_argument(
         "--verify-hashes",
