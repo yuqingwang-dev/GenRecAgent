@@ -113,7 +113,7 @@ def main() -> None:
         data = ROOT / config["data_dir"]
         manifest = json.loads((data / "manifest.json").read_text(encoding="utf-8"))
         if manifest.get("observation_snapshots_immutable") is not True:
-            raise ValueError("Use corrected v2 immutable-observation trajectories")
+            raise ValueError("Use checked immutable-observation trajectories")
         if manifest["base_revision"] != config["revision"]:
             raise ValueError("SFT data and model revision differ")
         if config.get("input_protocol") != manifest.get("input_protocol"):
@@ -162,8 +162,15 @@ def main() -> None:
     if not args.smoke_test and config.get("initial_adapter"):
         initial = ROOT / config["initial_adapter"]
         previous = json.loads((initial.parent / "metrics.json").read_text(encoding="utf-8"))
+        previous_config = json.loads(
+            (initial.parent / "run_config.json").read_text(encoding="utf-8")
+        )
         initial_adapter_hash = file_sha256(initial / "adapter_model.safetensors")
-        if previous["status"] != "full_sft" or initial_adapter_hash != previous["adapter_sha256"]:
+        if (
+            previous["status"] != "full_sft"
+            or initial_adapter_hash != previous["adapter_sha256"]
+            or previous_config["base_revision"] != config["revision"]
+        ):
             raise ValueError("Initial adapter is not the checked real SFT artifact")
         model = PeftModel.from_pretrained(model, initial, is_trainable=True).to(device)
     else:
@@ -276,7 +283,13 @@ def main() -> None:
         "git_commit_at_start": commit_at_start,
         "source_hashes": {
             path: file_sha256(ROOT / path)
-            for path in ("scripts/train_tool_sft.py", "src/genrecagent/agent/action_loss.py")
+            for path in (
+                "scripts/train_tool_sft.py",
+                "src/genrecagent/agent/action_loss.py",
+                "src/genrecagent/agent/trajectory_data.py",
+                "src/genrecagent/agent/compact_policy.py",
+                "src/genrecagent/agent/rollout_validation.py",
+            )
         },
         "gpu": torch.cuda.get_device_name(0) if device == "cuda" else None,
         "versions": {package: version(package) for package in ("torch", "transformers", "peft")},

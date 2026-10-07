@@ -7,7 +7,7 @@ import platform
 import subprocess
 import sys
 from datetime import UTC, datetime
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from time import perf_counter
 
@@ -20,6 +20,14 @@ from genrecagent.evaluation.baseline import evaluate_baselines
 from genrecagent.retrieval.dense import DenseRetriever
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def optional_package_version(package: str) -> str | None:
+    # Precomputed-index evaluation must not require the unused sentence encoder runtime.
+    try:
+        return version(package)
+    except PackageNotFoundError:
+        return None
 
 
 def main() -> None:
@@ -76,7 +84,7 @@ def main() -> None:
         "platform": platform.platform(),
         "logical_cpu_count": os.cpu_count(),
         "package_versions": {
-            package: version(package)
+            package: optional_package_version(package)
             for package in ("numpy", "pyarrow", "torch", "sentence-transformers")
         },
         "openblas_num_threads": os.getenv("OPENBLAS_NUM_THREADS"),
@@ -90,8 +98,10 @@ def main() -> None:
     print(f"Dataset: {dataset_manifest['dataset']} / {dataset_manifest['category']}")
     print(f"Source: {dataset_manifest['source_kind']}")
     print(f"Mode: {dataset_manifest['mode']}; seed: {dataset_manifest['stats']['seed']}")
-    print(f"Users: {len(histories)}; items: {len(retriever.item_ids)}; "
-          f"interactions: {dataset_manifest['stats']['interactions']}")
+    print(
+        f"Users: {len(histories)}; items: {len(retriever.item_ids)}; "
+        f"interactions: {dataset_manifest['stats']['interactions']}"
+    )
     print(f"Encoder: {retriever.metadata['model_name']}; device: {retriever.metadata['device']}")
     print(json.dumps(results, indent=2))
     print(f"Output: {output}; elapsed: {perf_counter() - started:.2f}s")

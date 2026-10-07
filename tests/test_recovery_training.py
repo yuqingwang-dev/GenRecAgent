@@ -2,13 +2,16 @@ import json
 
 import pytest
 import torch
-from transformers import Qwen2Config, Qwen2ForCausalLM
+from peft import LoraConfig, get_peft_model
+from transformers import BatchEncoding, Qwen2Config, Qwen2ForCausalLM
 
 from genrecagent.agent.action_loss import assistant_action_loss
 from genrecagent.agent.compact_policy import compact_state
 from genrecagent.agent.recovery_data import balanced_actions, check_split_groups
+from genrecagent.agent.rollout_validation import selection_score, validation_subset
 from genrecagent.agent.tool_environment import TOOL_NAMES
 from genrecagent.agent.trajectory_data import action_tokens
+from genrecagent.llm.local_qwen import LocalQwenLLM
 
 
 class CharacterTokenizer:
@@ -113,3 +116,72 @@ def test_compact_state_removes_item_payloads_without_adding_action_or_phase_orac
     assert "items" not in compact["last_observation"]
     assert not ({"phase", "allowed_actions", "next_action", "expected"} & compact.keys())
     assert compact["last_observation"]["error"] == "Read history first"
+
+
+def test_rollout_selection_is_validation_only_and_prioritizes_feasible_fills():
+    rows = [
+        {
+            "task_id": f"v{i}",
+            "split": "validation",
+            "expected": "success" if i < 4 else "clarification",
+        }
+        for i in range(8)
+    ]
+    chosen = validation_subset(rows, count=4)
+    assert sum(row["expected"] == "success" for row in chosen) == 2
+    assert chosen == validation_subset(rows, count=4)
+    with pytest.raises(ValueError, match="only"):
+        validation_subset([{**rows[0], "split": "test"}], count=2)
+    strong = {"feasible_filled": 2, "contract_pass": 3, "policy_illegal_calls": 0}
+    low_loss_but_empty = {"feasible_filled": 0, "contract_pass": 4, "policy_illegal_calls": 0}
+    assert selection_score(strong, 1.0) > selection_score(low_loss_but_empty, 0.001)
+
+
+def test_loaded_trainable_adapter_can_generate_between_training_epochs():
+    base = Qwen2ForCausalLM(
+        Qwen2Config(
+            vocab_size=32,
+            hidden_size=8,
+            intermediate_size=16,
+            num_hidden_layers=1,
+            num_attention_heads=2,
+            num_key_value_heads=1,
+            eos_token_id=2,
+            pad_token_id=0,
+        )
+    )
+    model = get_peft_model(
+        base,
+        LoraConfig(r=2, lora_alpha=4, target_modules=["q_proj", "v_proj"], task_type="CAUSAL_LM"),
+    )
+    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    model.enable_input_require_grads()
+    model.eval()
+    model.disable_input_require_grads()
+
+    class Tokenizer:
+        pad_token_id, eos_token_id = 0, 2
+
+        def apply_chat_template(self, messages, **kwargs):
+            return BatchEncoding(
+                {
+                    "input_ids": torch.tensor([[1, 3, 4]]),
+                    "attention_mask": torch.ones((1, 3), dtype=torch.long),
+                }
+            )
+
+        def decode(self, suffix, **kwargs):
+            return "{}"
+
+    llm = LocalQwenLLM.from_loaded_model(
+        model, Tokenizer(), device="cpu", model_name="tiny-software", revision="a" * 40
+    )
+    llm.generation_config.max_new_tokens = 2
+    assert llm.chat([{"role": "user", "content": "state"}]) == "{}"
+    assert llm.generation_record()["output_tokens"] <= 2
+    model.enable_input_require_grads()
+    model.train()
+    row = {"input_ids": [1, 3, 4], "labels": [-100, 3, 4]}
+    loss = assistant_action_loss(model, row, "cpu")
+    loss.backward()
+    assert any(p.grad is not None for p in model.parameters() if p.requires_grad)
