@@ -249,6 +249,11 @@ def main() -> None:
         else None,
         **provenance,
     }
+    if guarded:
+        # Guard also retains generation that expired before a physical trace step could be added.
+        metrics["generation_tokens"] = sum(
+            row["result"]["guard"]["model_generation_tokens"] for row in traces
+        )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     with (args.output_dir / "traces.jsonl").open("w", encoding="utf-8") as stream:

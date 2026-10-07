@@ -1,4 +1,5 @@
 from copy import deepcopy
+from types import SimpleNamespace
 
 import pytest
 
@@ -107,3 +108,22 @@ def test_popularity_failure_is_not_retried_and_deadline_does_not_call_model():
     policy = RepeatingPolicy()
     result = run_guarded_agent(env, policy)
     assert result["status"] == "budget_exhausted" and policy.calls == 0
+
+
+def test_generation_cost_is_retained_when_deadline_expires_before_tool_execution():
+    env = _environment()
+
+    class LatePolicy:
+        llm = SimpleNamespace(
+            generation_record=lambda: {"output_tokens": 9, "elapsed_seconds": 0.3}
+        )
+
+        def choose(self, state):
+            env._started -= 1000
+            return {"name": "read_history", "arguments": {}}
+
+    result = run_guarded_agent(env, LatePolicy())
+    assert result["status"] == "budget_exhausted" and result["trace"] == []
+    assert result["guard"]["model_generation_tokens"] == 9
+    assert len(result["guard"]["unexecuted_proposals"]) == 1
+    assert result["guard"]["model_accepted_actions"] == 0

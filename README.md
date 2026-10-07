@@ -73,6 +73,17 @@ Implemented but not yet verified: optional FAISS IndexFlatIP backend. The M1 res
 
 The minimum experimental chain now includes actual SFT, paired policy comparison, retrieval comparison, verification/recovery ablations and CLI traces. Keep Fixed as the reliable demonstration policy; raw SFT remains an opt-in experiment. Larger independent language sets, better learned policies and public-release packaging can follow. M2's original RQ-VAE quality goal remains unmet; the usable tokenizer is explicitly an **RQ-KMeans baseline**. This checkpoint is not a production-ready learned recommender.
 
+## Current development — guarded model runtime
+
+`guarded_sft` and `guarded_prompt` gate model proposals by observable tool prerequisites and immutable request constraints. Rejected proposals are replaced by explicitly logged controller actions; after two rejections the controller completes the request. Raw `sft`/`prompt` modes remain available and their historical results are unchanged. In a fresh **72-task validation-only** comparison, raw SFT passed 26/72 and guarded SFT passed 72/72, but every guarded task used the controller and zero were unassisted. This improves system execution, not the learned model's independent ability. Fixed remains the lower-cost default.
+
+```powershell
+python scripts/run_project.py demo --policy guarded_sft
+python scripts/evaluate_tool_agent.py --policy guarded_sft --split validation --max-tasks 72 --output-dir outputs/new_guarded_validation
+```
+
+These commands use the existing lab95-trained adapter locally for inference only. New training, if authorized, still runs on lab95. See [runtime validation evidence](docs/results_guarded_policy_validation.md).
+
 ## Project Structure
 
 ```text

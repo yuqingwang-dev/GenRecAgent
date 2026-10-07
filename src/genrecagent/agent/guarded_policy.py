@@ -88,7 +88,9 @@ def run_guarded_agent(environment, policy, *, max_model_rejections: int = 2) -> 
         "model_rejected_proposals": 0,
         "controller_actions": 0,
         "handoff_to_controller": False,
+        "model_generation_tokens": 0,
     }
+    unexecuted_proposals = []
     while environment.status is None and len(environment.trace) < environment.max_steps:
         if perf_counter() - environment._started > environment.max_seconds:
             break
@@ -119,6 +121,8 @@ def run_guarded_agent(environment, policy, *, max_model_rejections: int = 2) -> 
             llm = getattr(policy, "llm", None)
             if llm is not None:
                 generation = llm.generation_record()
+                if generation is not None:
+                    counts["model_generation_tokens"] += generation.get("output_tokens", 0)
             if rejected is None:
                 source = "model"
             else:
@@ -129,6 +133,15 @@ def run_guarded_agent(environment, policy, *, max_model_rejections: int = 2) -> 
         previous_steps = len(environment.trace)
         environment.step(call)
         if len(environment.trace) == previous_steps:
+            if proposal is not None or generation is not None:
+                unexecuted_proposals.append(
+                    {
+                        "model_proposal": deepcopy(proposal),
+                        "generation": generation,
+                        "rejection_reason": rejected,
+                        "reason": "deadline_before_tool_execution",
+                    }
+                )
             break
         counts["model_accepted_actions" if source == "model" else "controller_actions"] += 1
         environment.trace[-1]["guard_decision"] = {
@@ -146,6 +159,7 @@ def run_guarded_agent(environment, policy, *, max_model_rejections: int = 2) -> 
     result["guard"] = {
         **counts,
         "max_model_rejections": max_model_rejections,
+        "unexecuted_proposals": unexecuted_proposals,
         "scope": "guarded system; controller success is not raw model success",
     }
     return result
