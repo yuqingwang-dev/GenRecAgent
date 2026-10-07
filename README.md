@@ -4,6 +4,8 @@ GenRecAgent is a research project for personalized e-commerce recommendation wit
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
+Latest development: full fixed-weight retrieval test is complete (8,151 users, zero source failures). Recovery v3 data and trainer are implemented, but its real two-epoch adapter and fresh held-out policy comparison remain **unverified, pending training confirmation**. The lab95 complete regression suite passed **138 tests**; three same-task Fixed/source-removal validation runs passed 72/72 each, with returned full candidate provenance independently checked. See the [original-requirement acceptance audit](docs/acceptance_audit_2026_10_07.md) and [bounded recovery-training plan](docs/recovery_v3_plan.md). No controller success is counted as raw model capability.
+
 ## Start here — real-data delivery entry
 
 On this machine, the prepared data, retrieval checkpoint and returned SFT adapter are already present:
@@ -46,7 +48,7 @@ The diagram describes the real-data path, not the Phase 0 mock. `scripts/run_too
 
 ## Current Status
 
-Implemented and locally verified:
+Implemented and exercised locally or on lab95 (model quality caveats remain):
 
 - independent Git project scaffold
 - typed, serializable agent state
@@ -65,6 +67,8 @@ Implemented and locally verified:
 - M4 controlled intents and hard price constraints, with 48 development/48 held-out synthetic tasks, independent metadata grading and zero measured price violations
 - Local Qwen2.5-1.5B JSON tool decisions with strict schema checks, grounded budgets and one repair; curated paraphrase held-out contracts improved from rules 9/30 to guarded pipeline 27/30, while raw model labels were only 3/10 unique expressions correct
 - Actual Dense + trained M3 Transformer item-level rank fusion, evaluated on all 8,151 validation users; equal weighting hurts recall, while 75% Dense weighting does not improve Recall@20
+- The frozen full test reproduces original Dense/Transformer endpoints; 75% Dense fusion Recall@20 is 0.036928 versus Dense 0.036560 (only three additional net hits, no robust-gain claim)
+- Complete artifact-only candidate pools, explicit end reasons and non-vacuous metric denominators; an offline evidence checker verifies frozen inputs, candidate filtering/provenance and summary grades without inference
 - A nine-tool stateful environment with real catalog execution, immutable observations, bounded recovery and verified termination; fixed-flow and raw multi-step Qwen comparisons plus recovery/finish-gate ablations
 - Executed v2 trajectories (608 train / 492 validation / 490 test assistant actions), user-disjoint splits, assistant-only labels and a local LoRA entry verified on a tiny random CPU software test
 - Actual Qwen2.5-1.5B LoRA training on lab95 RTX 3090: validation action NLL 0.6410 to 0.0382; same 12 held-out task contracts Fixed 12/12, Prompt 0/12, raw SFT 4/12 (only one of nine feasible tasks filled). Adapter hashes, returned artifacts and limitations are in [the SFT report](docs/results_m5_sft_lab95.md)

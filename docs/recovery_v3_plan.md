@@ -24,4 +24,6 @@ Compact Prompt validation is a same-protocol baseline, not SFT. It does not use 
 
 The baseline finished at 0/72 contracts, with no feasible fills or correct clarifications. Its records, the 120-test pass log and the miniature CPU software check were automatically returned to `outputs/recovery_v3_pretraining_server`. This is not a trained v3 adapter. The requested lab95 real-training confirmation remains pending.
 
+Subsequent acceptance work added full candidate artifacts, explicit end reasons/rate denominators, physical source-removal experiments and an offline evidence validator. The latest full lab95 suite passes 138 tests; three sequential Fixed runs on this same fresh validation split pass 72/72 each with complete pool provenance. These system checks do not replace raw v3 SFT or its new held-out comparison; see [the acceptance audit](acceptance_audit_2026_10_07.md).
+
 Full frozen test retrieval completed for 8,151 users, with zero source failures: Dense Recall@20 0.036560; Transformer 0.002454; 50% Dense fusion 0.031407; 75% Dense fusion 0.036928. Source endpoints exactly reproduce the original test runs. The 75% setting adds only three net hits; no robust statistical gain is claimed and weights were not tuned on test. `outputs/dual_retrieval_frozen_test` contains all Recall/NDCG@5/10/20 and provenance.
