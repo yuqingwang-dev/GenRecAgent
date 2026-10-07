@@ -4,7 +4,7 @@ GenRecAgent is a research project for personalized e-commerce recommendation wit
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
-Latest development: full fixed-weight retrieval test is complete (8,151 users, zero source failures). Recovery v3 data and trainer are implemented, but its real two-epoch adapter and fresh held-out policy comparison remain **unverified, pending training confirmation**. The lab95 complete regression suite passed **138 tests**; three same-task Fixed/source-removal validation runs passed 72/72 each, with returned full candidate provenance independently checked. See the [original-requirement acceptance audit](docs/acceptance_audit_2026_10_07.md) and [bounded recovery-training plan](docs/recovery_v3_plan.md). No controller success is counted as raw model capability.
+Latest development: full fixed-weight retrieval test is complete (8,151 users, zero source failures). Recovery v3 data and trainer are implemented, but its real two-epoch adapter and fresh held-out policy comparison remain **unverified, pending training confirmation**. The lab95 complete regression suite passed **154 tests**; three same-task Fixed/source-removal validation runs passed 72/72 each, with returned full candidate provenance independently checked. Read-only recovery preflight now enforces the frozen proposal and preserves old outputs, without importing Torch or starting training. See the [original-requirement acceptance audit](docs/acceptance_audit_2026_10_07.md) and [bounded recovery-training plan](docs/recovery_v3_plan.md). No controller success is counted as raw model capability.
 
 ## Start here — real-data delivery entry
 
