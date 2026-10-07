@@ -34,6 +34,13 @@ from genrecagent.agent.tool_environment import (
 )
 from genrecagent.data.storage import load_items, read_jsonl
 from genrecagent.delivery.readiness import DEFAULT_ADAPTER, check_artifacts
+from genrecagent.evaluation.agent_contracts import (
+    end_reason,
+    grade_contract,
+    legal_action_attempt,
+    summarize_contracts,
+)
+from genrecagent.evaluation.source_ablation import SourceAblationEnvironment
 from genrecagent.llm.local_qwen import LocalQwenLLM
 from genrecagent.retrieval.hybrid_loader import file_sha256, load_dual_resources
 
@@ -60,7 +67,9 @@ def main() -> None:
     parser.add_argument("--max-tasks", type=int, default=12)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument(
-        "--ablation", choices=["none", "no_finish_verification", "no_recovery"], default="none"
+        "--ablation",
+        choices=["none", "no_finish_verification", "no_recovery", "no_dense", "no_generative"],
+        default="none",
     )
     args = parser.parse_args()
     guarded = args.policy in GUARDED_POLICIES
@@ -161,7 +170,17 @@ def main() -> None:
         environment_type = (
             NoFinishVerification if args.ablation == "no_finish_verification" else (ToolEnvironment)
         )
-        environment = environment_type(resources, items, task)
+        if args.ablation in {"no_dense", "no_generative"}:
+            environment = SourceAblationEnvironment(
+                resources,
+                items,
+                task,
+                disabled_tool="retrieve_dense"
+                if args.ablation == "no_dense"
+                else "retrieve_generative",
+            )
+        else:
+            environment = environment_type(resources, items, task)
         if row["scenario"] == "early_finish":
             environment.step({"name": "finish", "arguments": {}})
         result = (
@@ -170,23 +189,12 @@ def main() -> None:
             else run_tool_agent(environment, policy, recover=args.ablation != "no_recovery")
         )
         latencies.append((perf_counter() - started) * 1000)
-        item_ids = [item["item_id"] for item in result["items"]]
-        safe = len(item_ids) == len(set(item_ids)) and all(
-            item["item_id"] in items
-            and items[item["item_id"]].price is not None
-            and PriceLimit(row["max_price"]).allows(items[item["item_id"]].price)
-            and item["item_id"] not in row["history"]
-            and (row["category"] is None or row["category"] in items[item["item_id"]].categories)
-            for item in result["items"]
-        )
-        violations += not safe
-        correct = safe and result["status"] == row["expected"]
-        if result["status"] == "success":
-            correct = correct and len(result["items"]) == row["top_k"]
-        elif result["status"] == "clarification":
-            correct = correct and not result["items"]
+        grade = grade_contract(result, row, items)
+        result["end_reason"] = end_reason(result)
+        violations += not grade["output_safe"]
+        correct = grade["contract_pass"]
         passed.append(correct)
-        traces.append({"task": row, "result": result, "contract_pass": correct})
+        traces.append({"task": row, "result": result, "contract_pass": correct, "grade": grade})
         print(
             f"{args.policy}: {row['task_id']} status={result['status']} pass={correct}", flush=True
         )
@@ -221,8 +229,7 @@ def main() -> None:
             for step in row["result"]["trace"]
         ),
         "policy_illegal_calls": sum(
-            not step["observation"]["ok"]
-            and "synthetic_injected_tool_failure" not in step["observation"].get("error", "")
+            not legal_action_attempt(step)
             and not (row["task"]["scenario"] == "early_finish" and number == 0)
             for row in traces
             for number, step in enumerate(row["result"]["trace"])
@@ -268,6 +275,7 @@ def main() -> None:
         if guarded
         else None,
         **provenance,
+        "contract_metrics": summarize_contracts(traces),
     }
     if guarded:
         # Guard also retains generation that expired before a physical trace step could be added.

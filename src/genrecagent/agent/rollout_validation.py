@@ -5,7 +5,7 @@ import hashlib
 from genrecagent.agent.compact_policy import CompactQwenStepPolicy
 from genrecagent.agent.constraints import PriceLimit
 from genrecagent.agent.tool_environment import ToolEnvironment, ToolTask, run_tool_agent
-from genrecagent.delivery.demo import grade_demo
+from genrecagent.evaluation.agent_contracts import grade_contract, legal_action_attempt
 
 
 def validation_subset(rows: list[dict], *, count: int = 16) -> list[dict]:
@@ -43,21 +43,12 @@ def evaluate_raw_rollouts(llm, resources, items: dict, rows: list[dict]) -> dict
         if row["scenario"] == "early_finish":
             env.step({"name": "finish", "arguments": {}})
         result = run_tool_agent(env, policy)
-        catalog = {
-            key: item
-            for key, item in items.items()
-            if row["category"] is None or row["category"] in item.categories
-        }
-        grade = grade_demo(
-            result, catalog, history=row["history"], top_k=row["top_k"], max_price=row["max_price"]
-        )
+        grade = grade_contract(result, row, items)
         passed += grade["contract_pass"]
         filled += grade["contract_pass"] and result["status"] == "success"
         for index, step in enumerate(result["trace"]):
-            errors += (
-                not step["observation"]["ok"]
-                and "synthetic_injected_tool_failure" not in step["observation"].get("error", "")
-                and not (row["scenario"] == "early_finish" and index == 0)
+            errors += not legal_action_attempt(step) and not (
+                row["scenario"] == "early_finish" and index == 0
             )
             tokens += (step.get("policy_generation") or {}).get("output_tokens", 0)
     return {

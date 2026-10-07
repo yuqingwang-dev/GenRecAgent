@@ -30,6 +30,7 @@ from genrecagent.agent.tool_environment import (
 from genrecagent.agent.tool_policy import LLMToolPolicy
 from genrecagent.data.storage import load_items
 from genrecagent.delivery.readiness import DEFAULT_ADAPTER, check_artifacts
+from genrecagent.evaluation.agent_contracts import end_reason
 from genrecagent.llm.local_qwen import LocalQwenLLM
 from genrecagent.retrieval.hybrid_loader import load_dual_resources
 
@@ -140,6 +141,7 @@ def main() -> None:
         else run_tool_agent(environment, policy)
     )
     result["policy"] = args.policy
+    result["end_reason"] = end_reason(result)
     result["input_scope"] = "text plus explicit normalized constraints and observed history"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

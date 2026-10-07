@@ -145,6 +145,7 @@ class ToolEnvironment:
         before, started = self.snapshot(), perf_counter()
         name, args = call.get("name"), call.get("arguments")
         observation = {}
+        service_failure = False
         try:
             if (
                 set(call) != {"name", "arguments"}
@@ -187,6 +188,7 @@ class ToolEnvironment:
                 }[name]
                 self.source_errors[key] = observation["error"]
                 self.epoch += 1
+                service_failure = True
         self.trace.append(
             {
                 "state": before,
@@ -195,6 +197,23 @@ class ToolEnvironment:
                 "latency_ms": (perf_counter() - started) * 1000,
             }
         )
+        if service_failure:
+            self.trace[-1]["service_failure"] = True
+        # Artifact-only audit. Never place full candidate pools into the model's observation.
+        if observation.get("ok") and name.startswith("retrieve_"):
+            key = observation["source"]
+            self.trace[-1]["candidate_audit"] = {
+                "kind": "retrieved_pool",
+                "source": key,
+                "hits": [hit.to_dict() for hit in self.sources[key]],
+            }
+        elif observation.get("ok") and name == "filter_candidates":
+            self.trace[-1]["candidate_audit"] = {
+                "kind": "filtered_pools",
+                "sources": {
+                    key: [hit.to_dict() for hit in rows] for key, rows in self.sources.items()
+                },
+            }
         return observation
 
     def _execute(self, name: str, args: dict) -> dict:
