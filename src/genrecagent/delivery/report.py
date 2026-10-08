@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from genrecagent.delivery.readiness import DEFAULT_ADAPTER, sha256
+from genrecagent.delivery.recovery_report import RECOVERY_BASE, build_recovery_report
 
 
 def build_report(root: Path) -> dict:
@@ -78,6 +79,7 @@ def build_report(root: Path) -> dict:
                 if key.startswith("hybrid_")
             }
         )
+    recovery = build_recovery_report(root) if (root / RECOVERY_BASE).exists() else None
     return {
         "scope": "aggregation of frozen runs; no new training or benchmark evaluation",
         "users": users,
@@ -89,19 +91,26 @@ def build_report(root: Path) -> dict:
         "dual_retrieval_validation_only": dual["methods"],
         "policy_heldout_synthetic_subset": policies,
         "sft_training": training,
+        "recovery_v3": recovery,
         "training_code_commit": config["git_commit_at_start"],
         "training_seconds": config["elapsed_seconds"],
         "source_metric_sha256": sources,
         "default_policy": "fixed",
         "limits": [
-            "Policy tasks are synthetic and provide normalized constraints; templates are reused.",
-            f"SFT filled {policies['sft']['feasible_filled']}/{policies['sft']['feasible_tasks']} "
+            "Legacy v2 policy tasks are synthetic with normalized constraints "
+            "and reused templates.",
+            f"Legacy v2 SFT filled {policies['sft']['feasible_filled']}/"
+            f"{policies['sft']['feasible_tasks']} "
             "feasible requests and correctly clarified "
             f"{policies['sft']['correct_clarifications']}.",
             "Frozen hybrid test is reported when available; small differences are not robust gain, "
             "online impact or production-readiness claims.",
             "Per-user chronological split and static catalog "
             "do not guarantee global temporal safety.",
+            "Recovery v3, when present, is a separate fresh synthetic split; "
+            "the environment supplies observable flags and a precomputed static eligibility count.",
+            "Raw Compact Prompt is an untuned schema-following baseline; "
+            "this does not establish superiority over an optimized prompted agent.",
         ],
     }
 
@@ -162,11 +171,52 @@ def render_report(data: dict) -> str:
             "",
             "Default demo: **Fixed**. Raw Prompt and SFT remain explicit experiments.",
             "",
-            "## Limits",
-            "",
         ]
     )
+    recovery = data.get("recovery_v3")
+    if recovery is not None:
+        lines.extend(
+            [
+                "## Recovery v3 — fresh synthetic held-out split, raw models",
+                "",
+                recovery["scope"],
+                "",
+                "| Policy | Contracts | Feasible filled | Clarifications | "
+                "Illegal calls | Mean ms |",
+                "| --- | ---: | ---: | ---: | ---: | ---: |",
+            ]
+        )
+        for name in ("fixed", "compact_prompt", "compact_sft"):
+            row = recovery["raw_results"][name]["metrics"]
+            lines.append(
+                f"| {name} | {row['contract_pass']}/{row['tasks']} | "
+                f"{row['feasible_filled']}/{row['feasible_tasks']} | "
+                f"{row['correct_clarifications']} | {row['policy_illegal_calls']} | "
+                f"{row['avg_execution_latency_ms']:.2f} |"
+            )
+        lines.extend(
+            [
+                "",
+                f"Selected epoch: {recovery['selection']['selected_epoch']}; "
+                f"selected unweighted validation NLL: "
+                f"{recovery['selection']['selected_validation_nll']:.6f}; "
+                f"diagnostic minimum NLL: {recovery['selection']['minimum_validation_nll']:.6f}.",
+                "",
+                f"Changed finite LoRA tensors: {recovery['adapter_update']['changed_tensors']}/"
+                f"{recovery['adapter_update']['tensors']}. No runtime controller is used.",
+                "",
+                "This protocol differs from v2; do not merge their rates "
+                "or infer a cross-protocol gain.",
+                "",
+            ]
+        )
+    lines.extend(["## Limits", ""])
     lines.extend(f"- {limit}" for limit in data["limits"])
     lines.extend(["", "## Input metric checksums", ""])
     lines.extend(f"- `{path}`: `{digest}`" for path, digest in data["source_metric_sha256"].items())
+    if recovery is not None:
+        lines.extend(["", "### Recovery v3 fingerprints", ""])
+        lines.extend(
+            f"- `{path}`: `{digest}`" for path, digest in recovery["source_sha256"].items()
+        )
     return "\n".join(lines) + "\n"

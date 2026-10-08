@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from genrecagent.data.storage import load_items, read_jsonl
 from genrecagent.delivery.readiness import resolve_output, sha256
+from genrecagent.delivery.source_evidence import verify_source
 from genrecagent.evaluation.agent_evidence import audit_run, check_paired_runs
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,9 +36,7 @@ def main():
         if not metrics["source_hashes"]:
             raise ValueError("No recorded evaluation-source fingerprints")
         for name, digest in metrics["source_hashes"].items():
-            source = (ROOT / name).resolve()
-            if not source.is_relative_to(ROOT) or sha256(source) != digest:
-                raise ValueError(f"Recorded evaluation source hash mismatch: {name}")
+            verify_source(ROOT, name, digest, metrics["git_commit_at_start"])
         checkpoint = ROOT / "outputs/m3_transformer_full_server/transformer.pt"
         if sha256(checkpoint) != metrics["recommendation_checkpoint_sha256"]:
             raise ValueError("Recommendation checkpoint hash mismatch")

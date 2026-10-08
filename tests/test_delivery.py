@@ -145,6 +145,7 @@ def test_report_separates_splits_and_preserves_metric_provenance(tmp_path):
     assert "hybrid_75" not in report["retrieval_test"]
     assert report["dual_retrieval_validation_only"]["hybrid_75"]["Recall@20"] == 0.25
     assert len(report["source_metric_sha256"]) == 11
+    assert report["recovery_v3"] is None
     text = render_report(report)
     assert "test only" in text and "validation only" in text
     assert "1 synthetic held-out tasks" in text
@@ -160,3 +161,10 @@ def test_report_refuses_unpaired_tasks_or_missing_metrics(tmp_path):
         build_report(tmp_path)
     with pytest.raises(FileNotFoundError):
         build_report(tmp_path / "missing")
+
+
+def test_partial_recovery_artifacts_are_not_silently_presented_as_completed(tmp_path):
+    _report_fixture(tmp_path)
+    _write(tmp_path, "outputs/tool_sft_recovery_v3_server/tool_sft_recovery_v3/metrics.json", {})
+    with pytest.raises(FileNotFoundError):
+        build_report(tmp_path)

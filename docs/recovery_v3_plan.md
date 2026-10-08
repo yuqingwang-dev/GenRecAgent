@@ -1,6 +1,6 @@
-# Recovery SFT v3 plan — 2026-10-07
+# Recovery SFT v3 plan and actual run — 2026-10-07/08
 
-This is implementation/testing work, not a presentation milestone. The project goal remains unfinished. Actual v3 training has not started without the requested resource confirmation.
+The plan below was frozen on 2026-10-07. The user explicitly approved this run on 2026-10-08. Training and the complete independent comparison have now finished, and their weights/logs/traces were returned and verified. Earlier waiting-for-confirmation statements below are historical, not the current training status.
 
 ## Frozen changes
 
@@ -37,3 +37,23 @@ Subsequent acceptance work added full candidate artifacts, explicit end reasons/
 Later preflight hardening found and fixed an eager Semantic-ID package import: plain data storage had unnecessarily imported Torch on lab95. Public APIs now lazy-load their optional runtimes. Fresh subprocess tests prove ordinary storage/codebook/preflight imports do not load Torch, NumPy or Transformers; the ML tests still exercise their real implementations. The updated complete lab95 suite passed **154 tests in 6.45 seconds**, exit 0. Its real read-only launcher and invalid-approval rejection also passed, with no test content opened and no training output created. Returned evidence is `outputs/recovery_preflight_server/recovery_preflight_checks_final`, SHA256 archive `3e940dd1d3e8989aeaa6a47863a71e8aa36b8f9038187ca91da07a3ce35004f8`. This does not fix or certify the separate Windows native Torch instability during real inference.
 
 Full frozen test retrieval completed for 8,151 users, with zero source failures: Dense Recall@20 0.036560; Transformer 0.002454; 50% Dense fusion 0.031407; 75% Dense fusion 0.036928. Source endpoints exactly reproduce the original test runs. The 75% setting adds only three net hits; no robust statistical gain is claimed and weights were not tuned on test. `outputs/dual_retrieval_frozen_test` contains all Recall/NDCG@5/10/20 and provenance.
+
+## Actual approved run — 2026-10-08
+
+The single lab95 job exited 0. Training used the unchanged proposal: 1,080 selected actions (1,035 distinct), two epochs, rank-8 q/v LoRA and action-name weight 4. Recorded training/validation-selection time was **694.76 seconds** (excluding initial model/data loading); CUDA peak allocated memory was 3,240,066,560 bytes, about 3.02 GiB. The predeclared sixteen validation rollouts selected **epoch 1**: 16/16 contracts, eight feasible fills and no illegal decisions. Unweighted validation NLL was 0.724097 before training and 0.004506 for the selected checkpoint. Both epochs executed; the second epoch was not automatically assumed better.
+
+| Fresh full test (72 identical tasks) | Contracts | Feasible filled | Correct no-result | Illegal decisions | Mean steps | Mean loaded execution ms | Output tokens |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Fixed | 72/72 | 36/36 | 36/36 | 0 | 6.972 | 124.65 | 0 |
+| Raw Compact Prompt | 0/72 | 0/36 | 0/36 | 682 | 10.000 | 20,062.47 | 41,076 |
+| Raw Compact SFT | 72/72 | 36/36 | 36/36 | 1 | 4.542 | 3,096.91 | 5,107 |
+
+All policies used the same catalog, recommendation checkpoint, original tasks, ten-action/120-second-between-actions limits and sequential RTX 3090 execution. Prompt and SFT share the same compact input, BF16 and 1,024/96 token limits. SFT used **no runtime controller, action mask or fixed-flow fallback**. Its sole illegal decision was rejected and recovered by another model decision. Backend failures and externally seeded premature finishes remain separate from model illegality. Legal decision rate was 314/315 = 99.68%; mean actual tool attempts was 4.375. All 36 nonempty SFT outputs satisfied the declared constraints and complete candidate provenance checks. Prompt returned no items: its conditional nonempty constraint rate is **N/A**, not 100%.
+
+Full post-training validation was 70/72 (34/36 feasible fills and 36 correct no-result outcomes). The two warm hybrid failures had only two eligible retrieved items, performed rank/verify before Popularity recovery and exhausted the unchanged ten-step budget. Their traces are preserved. This loss/rollout mismatch and imperfect validation prevent a universal-success claim despite this test grid's 72/72.
+
+The observer supplies normalized route/constraints, tool flags/counts and a static full-catalog eligibility count. Learning when to clarify from that supplied fact is not evidence of autonomous discovery of unknown catalog feasibility. Tasks are synthetic, user/template/price-disjoint and single-seed; they are not real online requests or broad free-form planning. The raw Prompt baseline is deliberately untuned under the shared custom JSON schema, not a strong optimized prompted-agent benchmark. This comparison does not isolate the individual contributions of compact inputs, curriculum and name weighting, and cannot be merged with v2's different task protocol. Fixed remains much faster. RQ-VAE collapse and weak learned recommendation quality are unchanged.
+
+Training/evaluation code commit: `b452480ce719940c5e61e9e04e5b99285f9f4c21`. Selected adapter SHA256: `68746429318ede24c5150f2a26698b097a06f0ec7b801d4dd3ce6bafcb77de26`. Returned archive SHA256: `9cace2772c4394b684774464939c9335c56f34c44a47ea0e473ae423a909a125`. The old adapter is preserved. The independent CPU report verifies base/input/source fingerprints, checkpoint score, **112/112 changed finite tensors**, 1,089,536 saved tensor elements and all **288 full validation/test executions** against original tasks and metadata. Canonical artifacts are `outputs/tool_sft_recovery_v3_server` and `outputs/recovery_v3_delivery_report_verified`.
+
+After the benchmark was frozen, a malformed-name handler edge case and caller-mutable action trace were hardened. These changes do not retroactively replace benchmark code: source verification checks the byte-identical preserved recorded Git commit when current files differ. New unified `compact_sft` demo defaults to the returned checkpoint; legacy `sft` remains v2. No additional training was started.

@@ -149,6 +149,7 @@ class ToolEnvironment:
         try:
             if (
                 set(call) != {"name", "arguments"}
+                or not isinstance(name, str)
                 or name not in TOOL_NAMES
                 or not isinstance(args, dict)
             ):
@@ -178,8 +179,10 @@ class ToolEnvironment:
             observation["ok"] = True
         except Exception as exc:
             observation = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-            if name in {"retrieve_dense", "retrieve_generative", "retrieve_popular"} and (
-                self.history_read and not isinstance(exc, ValueError)
+            if (
+                isinstance(name, str)
+                and name in {"retrieve_dense", "retrieve_generative", "retrieve_popular"}
+                and (self.history_read and not isinstance(exc, ValueError))
             ):
                 key = {
                     "retrieve_dense": "dense",
@@ -192,7 +195,7 @@ class ToolEnvironment:
         self.trace.append(
             {
                 "state": before,
-                "action": call,
+                "action": deepcopy(call),
                 "observation": observation,
                 "latency_ms": (perf_counter() - started) * 1000,
             }
