@@ -13,6 +13,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from genrecagent.data.m3_audit import check_source_pins, resolve_project_output
 from genrecagent.data.sequences import SequenceExample, build_sequence_examples
 from genrecagent.data.storage import load_histories
 from genrecagent.semantic_id.codebook import SemanticCodebook
@@ -46,14 +47,13 @@ def main() -> None:
     source = config["source"]
     prepared = args.prepared_dir or ROOT / source["prepared_path"]
     semantic_ids = args.semantic_ids or ROOT / source["semantic_ids_path"]
-    output = args.output_dir or ROOT / source["output_path"]
-    if output.exists() and any(output.iterdir()):
-        parser.error(f"Output directory is not empty: {output}")
+    output = resolve_project_output(ROOT, args.output_dir or Path(source["output_path"]))
     max_history = (
         args.max_history if args.max_history is not None else config["sequences"]["max_history"]
     )
     dataset = json.loads((prepared / "manifest.json").read_text(encoding="utf-8"))
     codebook = SemanticCodebook.load(semantic_ids)
+    check_source_pins(source, prepared / "histories.jsonl", semantic_ids, codebook.metadata)
     if (
         codebook.metadata.get("source_dataset") != dataset["dataset"]
         or codebook.metadata.get("category") != dataset["category"]
@@ -64,6 +64,8 @@ def main() -> None:
     histories = load_histories(prepared)
     examples = build_sequence_examples(histories, codebook, max_history=max_history)
     counts = {split: len(rows) for split, rows in examples.items()}
+    if source.get("expected_examples") and counts != source["expected_examples"]:
+        raise ValueError("Example counts differ from the frozen experiment")
     without_prefix = sum(len(history.train_items) < 2 for history in histories)
     commit = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=False
@@ -80,6 +82,7 @@ def main() -> None:
         "histories_sha256": _sha256(prepared / "histories.jsonl"),
         "semantic_ids_sha256": _sha256(semantic_ids),
         "semantic_id_model_type": codebook.metadata.get("model_type"),
+        "semantic_id_variant": codebook.metadata.get("variant"),
         "codebook_item_count": len(codebook.assignments),
         "max_history": max_history,
         "users": len(histories),
@@ -92,10 +95,21 @@ def main() -> None:
         "elapsed_seconds": round(perf_counter() - started, 3),
         "git_commit": commit,
         "git_dirty": dirty,
+        "command": " ".join(sys.argv),
+        "config_sha256": _sha256(args.config),
+        "source_hashes": {
+            name: _sha256(ROOT / name) for name in (
+                "scripts/prepare_m3_sequences.py", "src/genrecagent/data/sequences.py",
+                "src/genrecagent/data/m3_audit.py",
+            )
+        },
     }
     output.mkdir(parents=True, exist_ok=True)
     for split, rows in examples.items():
         _write_examples(output / f"{split}.jsonl", rows)
+    manifest["example_file_sha256"] = {
+        split: _sha256(output / f"{split}.jsonl") for split in examples
+    }
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(json.dumps(manifest, indent=2))
     print(f"Output: {output}; elapsed: {perf_counter() - started:.2f}s")

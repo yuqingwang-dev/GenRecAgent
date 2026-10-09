@@ -1,0 +1,40 @@
+# Independent M3 experiment; the original generative.yaml/runtime stay unchanged.
+source:
+  prepared_path: data/processed/All_Beauty_full_optimized
+  semantic_ids_path: outputs/m2_rqvae_stable_full_server/m2_rqvae_stable_full/item_semantic_ids.json
+  output_path: data/processed/All_Beauty_m3_rqvae_stable
+  expected_histories_sha256: b8d1bde5a643fa64b8791ac0cf368eb691bb8eba0bba1a80d03e4acaf128eb6b
+  expected_semantic_ids_sha256: f16acf7acaefa72a64b06df6034ae055beb0c971c6e19076b82fc6eb707906e5
+  expected_semantic_id_model_type: trained_rqvae
+  expected_semantic_id_variant: pca_ema
+  require_catalog_quality_gate: true
+  expected_examples:
+    train: 10969
+    validation: 8151
+    test: 8151
+sequences:
+  max_history: 20
+retrieval:
+  beam_size: 20
+  max_codes: 20
+  top_k: 20
+transition:
+  alpha: 10.0
+evaluation:
+  k_values: [5, 10, 20]
+  output_path: outputs/m3_transition_rqvae_stable
+transformer:
+  approval_required: true
+  output_path: outputs/m3_transformer_rqvae_stable_full
+  evaluation_path: outputs/m3_transformer_rqvae_stable_evaluation
+  d_model: 128
+  n_heads: 4
+  n_layers: 2
+  feedforward_dim: 256
+  dropout: 0.1
+  epochs: 20
+  batch_size: 128
+  learning_rate: 0.0005
+  gradient_clip: 1.0
+  seed: 42
+  device: cuda

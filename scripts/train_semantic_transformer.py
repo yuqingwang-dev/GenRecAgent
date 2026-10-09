@@ -10,19 +10,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 
-import numpy as np
-import torch
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from genrecagent.data.storage import read_jsonl
-from genrecagent.retrieval.transformer import SemanticVocabulary, TransformerConfig
-from genrecagent.retrieval.transformer_training import (
-    TransformerTrainingConfig,
-    fit_semantic_transformer,
-)
-from genrecagent.semantic_id.codebook import SemanticCodebook
+from genrecagent.data.m3_audit import resolve_project_output
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -44,6 +36,8 @@ def _subset(rows: list[dict], count: int | None, seed: int) -> list[dict]:
         return rows
     if not 1 <= count <= len(rows):
         raise ValueError("Subset size must be between one and the split size")
+    import numpy as np
+
     selected = np.random.default_rng(seed).choice(len(rows), size=count, replace=False)
     return [rows[int(index)] for index in sorted(selected)]
 
@@ -63,21 +57,43 @@ def main() -> None:
     parser.add_argument("--n-layers", type=int)
     parser.add_argument("--feedforward-dim", type=int)
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"])
+    parser.add_argument("--approved", action="store_true",
+                        help="Use only after explicit approval of an approval-required config")
     args = parser.parse_args()
     if args.smoke_test and (
         args.max_train_examples is None or args.max_validation_examples is None
     ):
         parser.error("--smoke-test needs explicit train and validation subset sizes")
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+    if config["transformer"].get("approval_required") and not args.approved:
+        parser.error("This experiment requires separate training approval; no training started")
     source = config["source"]
     sequences = args.sequences_dir or ROOT / source["output_path"]
     semantic_ids = args.semantic_ids or ROOT / source["semantic_ids_path"]
-    output = args.output_dir or ROOT / config["transformer"]["output_path"]
-    if output.exists() and any(output.iterdir()):
-        parser.error(f"Output directory is not empty: {output}")
+    output = resolve_project_output(
+        ROOT, args.output_dir or Path(config["transformer"]["output_path"])
+    )
     sequence_manifest = json.loads((sequences / "manifest.json").read_text(encoding="utf-8"))
     if _sha256(semantic_ids) != sequence_manifest["semantic_ids_sha256"]:
         raise ValueError("Semantic ID mapping differs from the prepared M3 samples")
+    expected_hash = source.get("expected_semantic_ids_sha256")
+    if expected_hash and _sha256(semantic_ids) != expected_hash:
+        raise ValueError("Semantic ID mapping differs from the frozen experiment")
+    for split in ("train", "validation"):
+        recorded = sequence_manifest.get("example_file_sha256", {}).get(split)
+        if recorded and _sha256(sequences / f"{split}.jsonl") != recorded:
+            raise ValueError(f"Prepared sample hash mismatch: {split}")
+
+    import torch
+
+    from genrecagent.data.storage import read_jsonl
+    from genrecagent.retrieval.transformer import SemanticVocabulary, TransformerConfig
+    from genrecagent.retrieval.transformer_training import (
+        TransformerTrainingConfig,
+        fit_semantic_transformer,
+    )
+    from genrecagent.semantic_id.codebook import SemanticCodebook
+
     codebook = SemanticCodebook.load(semantic_ids)
     vocabulary = SemanticVocabulary.from_codebook(codebook)
     max_history = int(sequence_manifest["max_history"])
@@ -161,6 +177,15 @@ def main() -> None:
         "torch_version": torch.__version__,
         "created_utc": datetime.now(UTC).isoformat(),
         "elapsed_seconds": round(perf_counter() - started, 3),
+        "config_sha256": _sha256(args.config),
+        "explicit_training_approval_flag": args.approved,
+        "source_hashes": {
+            name: _sha256(ROOT / name) for name in (
+                "scripts/train_semantic_transformer.py",
+                "src/genrecagent/retrieval/transformer.py",
+                "src/genrecagent/retrieval/transformer_training.py",
+            )
+        },
     }
     output.mkdir(parents=True, exist_ok=True)
     result.model.save(output / "transformer.pt", vocabulary, max_history)

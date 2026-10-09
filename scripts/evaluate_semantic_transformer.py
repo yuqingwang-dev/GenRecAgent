@@ -15,6 +15,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from genrecagent.data.m3_audit import resolve_project_output
 from genrecagent.data.storage import load_histories, read_jsonl
 from genrecagent.evaluation.generative import evaluate_generative
 from genrecagent.retrieval.generative import GenerativeRetriever, train_popularity_counts
@@ -59,9 +60,11 @@ def main() -> None:
     prepared = args.prepared_dir or ROOT / source["prepared_path"]
     semantic_ids = args.semantic_ids or ROOT / source["semantic_ids_path"]
     checkpoint = args.checkpoint or ROOT / settings["transformer"]["output_path"] / "transformer.pt"
-    output = args.output_dir or ROOT / "outputs/m3_transformer_evaluation"
-    if output.exists() and any(output.iterdir()):
-        parser.error(f"Output directory is not empty: {output}")
+    output = resolve_project_output(
+        ROOT, args.output_dir or Path(settings["transformer"].get(
+            "evaluation_path", "outputs/m3_transformer_evaluation"
+        ))
+    )
     source_manifest = json.loads((sequences / "manifest.json").read_text(encoding="utf-8"))
     checkpoint_config = json.loads(
         (checkpoint.parent / "run_config.json").read_text(encoding="utf-8")
