@@ -16,6 +16,8 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from genrecagent.delivery.readiness import resolve_output
+from genrecagent.semantic_id.quality import quality_gate
 from genrecagent.semantic_id.rqvae import RQVAEConfig
 from genrecagent.semantic_id.training import TrainingConfig, encode_catalog, fit_rqvae
 
@@ -40,7 +42,8 @@ def _sample_indices(item_ids: list[str], max_items: int | None, seed: int) -> np
     ordered = sorted(
         range(len(item_ids)),
         key=lambda index: (
-            hashlib.sha256(f"{seed}:{item_ids[index]}".encode()).digest(), item_ids[index]
+            hashlib.sha256(f"{seed}:{item_ids[index]}".encode()).digest(),
+            item_ids[index],
         ),
     )
     return np.asarray(ordered[:max_items], dtype=np.int64)
@@ -65,14 +68,15 @@ def main() -> None:
     parser.add_argument("--codebook-size", type=int)
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"])
     parser.add_argument("--init-samples", type=int)
+    parser.add_argument("--warmup-epochs", type=int)
+    parser.add_argument("--pca-fit-samples", type=int)
+    parser.add_argument("--lloyd-iterations", type=int)
     args = parser.parse_args()
     if args.smoke_test and args.max_items is None:
         parser.error("--smoke-test requires --max-items")
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     index_dir = args.index_dir or ROOT / config["source"]["index_path"]
-    output_dir = args.output_dir or ROOT / config["source"]["output_path"]
-    if output_dir.exists() and any(output_dir.iterdir()):
-        parser.error(f"Output directory is not empty: {output_dir}")
+    output_dir = resolve_output(ROOT, args.output_dir or Path(config["source"]["output_path"]))
     embedding_path = index_dir / "item_embeddings.npy"
     item_ids_path = index_dir / "item_ids.json"
     vectors = np.load(embedding_path, mmap_mode="r", allow_pickle=False)
@@ -93,6 +97,18 @@ def main() -> None:
         num_levels=_override(args.num_levels, config["model"]["num_levels"]),
         codebook_size=_override(args.codebook_size, config["model"]["codebook_size"]),
         commitment_weight=float(config["model"]["commitment_weight"]),
+        **{
+            key: config["model"][key]
+            for key in (
+                "variant",
+                "quantization_weight",
+                "variance_weight",
+                "covariance_weight",
+                "ema_decay",
+                "dead_code_threshold",
+            )
+            if key in config["model"]
+        },
     )
     train_config = TrainingConfig(
         epochs=_override(args.epochs, config["training"]["epochs"]),
@@ -106,6 +122,25 @@ def main() -> None:
             if args.init_samples is not None
             else config["training"]["init_samples"]
         ),
+        warmup_epochs=_override(args.warmup_epochs, config["training"].get("warmup_epochs", 0)),
+        pca_fit_samples=_override(
+            args.pca_fit_samples, config["training"].get("pca_fit_samples", 32768)
+        ),
+        lloyd_iterations=_override(
+            args.lloyd_iterations, config["training"].get("lloyd_iterations", 0)
+        ),
+        **{
+            key: config["training"][key]
+            for key in (
+                "gradient_clip",
+                "min_utilization",
+                "min_perplexity_fraction",
+                "min_unique_ratio",
+                "max_group_fraction",
+                "max_reconstruction_mse",
+            )
+            if key in config["training"]
+        },
     )
     started = perf_counter()
     print(
@@ -134,9 +169,12 @@ def main() -> None:
         }
     )
     status = (
-        "cpu_smoke" if args.smoke_test and result.device == "cpu"
-        else "smoke_test" if args.smoke_test
-        else "development_subset" if args.max_items is not None
+        "cpu_smoke"
+        if args.smoke_test and result.device == "cpu"
+        else "smoke_test"
+        if args.smoke_test
+        else "development_subset"
+        if args.max_items is not None
         else "full_catalog_training"
     )
     metrics = {
@@ -146,16 +184,42 @@ def main() -> None:
         "train_item_count": len(result.train_indices),
         "validation_item_count": len(result.validation_indices),
         **catalog_metrics,
+        "variant": model_config.variant,
+        "selected_validation_quality": result.selected_validation_quality,
     }
+    stats = {
+        "codebook_usage_by_level": catalog_metrics["codebook_usage_by_level"],
+        "unique_ratio": catalog_metrics["collisions"]["unique_code_count"] / len(item_ids),
+        "largest_group_fraction": max(1, catalog_metrics["collisions"]["largest_collision_group"])
+        / len(item_ids),
+        "reconstruction_mse": catalog_metrics["catalog_reconstruction_mse"],
+    }
+    metrics["catalog_quality_gate"] = quality_gate(
+        stats,
+        **{
+            key: getattr(train_config, key)
+            for key in (
+                "min_utilization",
+                "min_perplexity_fraction",
+                "min_unique_ratio",
+                "max_group_fraction",
+                "max_reconstruction_mse",
+            )
+        },
+    )
+    mapping.metadata["variant"] = model_config.variant
+    mapping.metadata["catalog_quality_gate"] = metrics["catalog_quality_gate"]
     mapping.metadata["run_status"] = status
     mapping.metadata["train_item_count"] = len(result.train_indices)
     mapping.metadata["validation_item_count"] = len(result.validation_indices)
     commit = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=False
     ).stdout.strip()
-    dirty = bool(subprocess.run(
-        ["git", "status", "--porcelain"], cwd=ROOT, text=True, capture_output=True, check=False
-    ).stdout.strip())
+    dirty = bool(
+        subprocess.run(
+            ["git", "status", "--porcelain"], cwd=ROOT, text=True, capture_output=True, check=False
+        ).stdout.strip()
+    )
     run_config = {
         "command": " ".join(sys.argv),
         "created_utc": datetime.now(UTC).isoformat(),
@@ -169,10 +233,26 @@ def main() -> None:
         "training": asdict(train_config),
         "selected_item_count": len(item_ids),
         "subset_sampling": "full" if args.max_items is None else "SHA256(seed:item_id)",
-        "codebook_initialization": "train_latent_kmeans_plus_plus_seeds",
+        "codebook_initialization": "train_latent_kmeans_plus_plus_seeds_and_optional_lloyd",
+        "initialization": result.initialization,
         "actual_device": result.device,
         "torch_version": torch.__version__,
         "numpy_version": np.__version__,
+        "parameter_count": sum(p.numel() for p in result.model.parameters()),
+        "trainable_parameter_count": sum(
+            p.numel() for p in result.model.parameters() if p.requires_grad
+        ),
+        "source_hashes": {
+            name: _sha256(ROOT / name)
+            for name in (
+                "scripts/train_rqvae.py",
+                "src/genrecagent/semantic_id/rqvae.py",
+                "src/genrecagent/semantic_id/quantizer.py",
+                "src/genrecagent/semantic_id/training.py",
+                "src/genrecagent/semantic_id/stabilized.py",
+                "src/genrecagent/semantic_id/quality.py",
+            )
+        },
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     result.model.save(output_dir / "rqvae.pt")
@@ -185,6 +265,7 @@ def main() -> None:
     )
     for filename, payload in (
         ("training_log.json", result.epoch_log),
+        ("warmup_log.json", result.warmup_log),
         ("metrics.json", metrics),
         ("run_config.json", run_config),
     ):

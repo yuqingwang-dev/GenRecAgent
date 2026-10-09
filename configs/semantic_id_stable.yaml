@@ -1,0 +1,32 @@
+source:
+  index_path: data/processed/All_Beauty/index
+  output_path: outputs/m2_rqvae_stable_full
+model:
+  variant: pca_ema
+  hidden_dim: 256
+  latent_dim: 64
+  num_levels: 3
+  codebook_size: 256
+  commitment_weight: 0.25
+  quantization_weight: 0.05
+  variance_weight: 0.1
+  covariance_weight: 0.01
+  ema_decay: 0.99
+  dead_code_threshold: 0.1
+training:
+  epochs: 20
+  warmup_epochs: 3
+  batch_size: 512
+  learning_rate: 0.0003
+  validation_fraction: 0.1
+  seed: 42
+  device: cuda
+  init_samples: 4096
+  pca_fit_samples: 32768
+  lloyd_iterations: 10
+  gradient_clip: 1.0
+  min_utilization: 0.5
+  min_perplexity_fraction: 0.25
+  min_unique_ratio: 0.5
+  max_group_fraction: 0.02
+  max_reconstruction_mse: 0.000703
