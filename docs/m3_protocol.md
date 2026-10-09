@@ -1,6 +1,6 @@
 # M3 sequence data and candidate protocol (model not trained)
 
-Historical foundation protocol: the pending-model statements below predate the [completed original K-Means Transformer](results_m3_transformer.md). On 2026-10-09, [new learned RQ-VAE sample preparation](m3_rqvae_stable_plan.md) completed in a separate directory with the same item/user protocol; new full training still requires separate approval. Neither update changes the original mapping/checkpoint or the historical records below.
+Historical foundation protocol: the pending-model statements below predate the [completed original K-Means Transformer](results_m3_transformer.md). On 2026-10-09, [new learned RQ-VAE sample preparation](m3_rqvae_stable_plan.md) and the separately approved [full new Transformer training/evaluation](results_m3_rqvae_stable.md) completed with the same item/user protocol. Mixed/weak relevance changes do not establish an overall gain. Neither update changes the original mapping/checkpoint or the historical records below.
 
 The completed M3 foundation is a typed data boundary, catalog-valid code decoder and collision-aware candidate adapter. It is **not** a trained generative recommender. The research direction of predicting an item's Semantic ID from a user's prior item IDs follows [TIGER](https://arxiv.org/abs/2305.05065); this repository will measure its own results only after training.
 

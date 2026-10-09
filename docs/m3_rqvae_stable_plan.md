@@ -1,6 +1,6 @@
 # M3 migration to stabilized RQ-VAE codes: preparation and approval gate
 
-Date: 2026-10-09. **Samples and software checks are complete; new full Transformer training and retrieval evaluation have not started.** The user's instruction retains a separate approval gate for training. The existing K-Means M3 samples, checkpoint, saved metrics, router and delivery defaults are unchanged.
+Date: 2026-10-09. **The separately approved full Transformer training/evaluation, independent audits and local checksum return are complete.** The user explicitly confirmed “批准 M3 新编码训练及评测”; [actual results](results_m3_rqvae_stable.md) record one 20-epoch run (38.01 seconds) and both full retrieval splits (273.682 seconds). The historical proposal below was frozen before launch. The existing K-Means M3 samples, checkpoint, saved metrics, router and delivery defaults are unchanged; small/mixed new relevance changes do not justify promotion.
 
 ## Executed preparation
 
@@ -31,7 +31,7 @@ Audit evidence: `outputs/m3_rqvae_stable_preparation/audit.json`; sample provena
 
 Old M3 checkpoint remains `dba260171051311a4e214947bfdaec2449e8cabad0ea6e35907076fb08422dd3`; old K-Means map remains `f394e4ce1a39ec7eb078a9dc8141c3438359c52e7fc6a8c40be1e42e05c45c9c`. Old train/validation SHA256 remain `43fcf7c637fa13b2a6a77b16673eb7552275619e94945638f56aa94f3fa6d242` / `c599709d510d015187a3ee254be7b7898341d8478e0380148353911b2d0c2f0d`. These were checked after preparing/auditing the new data. Existing delivery must not substitute the new code map into its old checkpoint.
 
-## Proposed one-run budget — separate approval required
+## Frozen one-run proposal — approved and executed 2026-10-09
 
 Keep the original Transformer architecture, optimization and decoder settings fixed to make the tokenizer change interpretable. This is one seed/one fresh run, not a search:
 
@@ -40,7 +40,7 @@ Keep the original Transformer architecture, optimization and decoder settings fi
 - Target: **lab95 RTX 3090**, reusing the dedicated existing interpreter. Check CUDA and at least **2 GiB free VRAM** before launch; this is a conservative reservation, not a measured peak. Never terminate another user's job. No pretrained model, dataset download, new package installation or paid API is proposed. Prior equal-shape training took 115.66 seconds; estimate **2–5 minutes for training**, **5–20 minutes for both full retrieval splits**, depending on load. These are estimates, not new measured runtimes.
 - New server/local training output: `outputs/m3_transformer_rqvae_stable_full/`; retrieval output: `outputs/m3_transformer_rqvae_stable_evaluation/`. Use a new isolated server checkout and fresh paths, reuse existing inputs only after fingerprint checks, and return checksum-verified weights/logs/evaluation/audit files locally. Old model/data/results stay preserved.
 
-**Do not execute before explicit approval:** `python scripts/train_semantic_transformer.py --config configs/generative_rqvae_stable.yaml --approved`. The new config's `approval_required: true` refuses an unapproved launch before input/model loading. The CLI flag records acknowledged approval; it is not permission to bypass the user's confirmation.
+The approved command was `python scripts/train_semantic_transformer.py --config configs/generative_rqvae_stable.yaml --approved`; it has already completed and must not be relaunched into existing outputs. The new config's `approval_required: true` refuses an unapproved launch before input/model loading. The CLI flag records acknowledged approval; it is not permission to bypass confirmation or authorize further model searches. No new approval is needed to accept this already completed run's results.
 
 ## Frozen evaluation and handoff
 
