@@ -4,7 +4,7 @@ GenRecAgent is a research project for personalized e-commerce recommendation wit
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
-M2 repair update (2026-10-09): a separately configured **learned PCA-warmstarted EMA RQ-VAE** is implemented and tested, while preserving the original collapsed model and the distinct RQ-KMeans baseline. The complete lab95 software suite now passes 181 tests. Small real CPU models re-encode with zero mismatches; the 4,096-item/3×256 smoke still misses the predeclared third-level perplexity cutoff. Full-catalog stabilized training is not yet run or accepted, and the current M3 token mapping is unchanged. See [the M2 repair evidence and proposed full run](docs/m2_training_plan.md).
+M2 repair update (2026-10-09): the approved **learned PCA-warmstarted EMA RQ-VAE** completed full-catalog training on lab95, using all 112,590 items and the original item split. Selected-validation and full-catalog frozen gates both pass: catalog usage 256/256/256, 93,350 unique codes and validation MSE 0.00041323. Independent CUDA re-encoding finds zero mismatches over the entire catalog; all checksummed artifacts are local. The full software suite passes 181 tests. The original collapsed model and separate RQ-KMeans baseline are preserved. **Current M3 still uses its original K-Means map/checkpoint**; migration requires fresh prefixes and separately approved training. See [actual full results and limitations](docs/results_m2.md) and [the frozen plan](docs/m2_training_plan.md).
 
 Latest development: full fixed-weight retrieval test is complete (8,151 users, zero source failures). The user approved recovery v3 training on 2026-10-08; the job completed with exit 0 and its checksummed artifacts are local in `outputs/tool_sft_recovery_v3_server`. All 112 LoRA tensors changed and remained finite. Full raw validation passed 70/72, with two step-budget failures retained; fresh raw test passed 72/72 with one rejected model call recovered. Independent grading checked all 288 validation/test executions. Read the [actual recovery run and limits](docs/recovery_v3_plan.md) and [original-scope audit](docs/acceptance_audit_2026_10_07.md). No controller success is counted as raw model capability.
 
@@ -63,7 +63,7 @@ Implemented and exercised locally or on lab95 (model quality caveats remain):
 - tests and lint configuration
 - M1 typed review/item data handling, chronological leave-last-out, and deterministic user sampling on both local fixtures and official All_Beauty data
 - BGE-encoded full item catalog, NumPy exact cosine/IP retrieval, saved item mapping, train-only popularity, and validation/test evaluation on a 5,000-user real-data subset
-- M2 RQ-VAE training, checkpointing and collision-aware mapping on all 112,590 items; the actual run collapsed to 1,718 unique codes
+- M2 RQ-VAE training, checkpointing and collision-aware mapping on all 112,590 items; original collapsed run retained (1,718 codes), stabilized learned full run now passes frozen tokenizer gates (93,350 codes)
 - Separate PCA-whitened residual MiniBatch K-Means baseline on the same item vectors and item split; 97,231 unique three-token codes, with all remaining collisions recorded
 - M3 leakage-aware prefix examples, catalog-valid Semantic ID trie decoding, and collision-aware item candidate expansion tested on the full catalog with deterministic mock scores
 - M3 train-only code-transition baseline and a full-trained causal Transformer, both evaluated on all 8,151 validation and test users
@@ -79,7 +79,7 @@ Implemented and exercised locally or on lab95 (model quality caveats remain):
 
 Implemented but not yet verified: optional FAISS IndexFlatIP backend. The M1 result used exact NumPy search.
 
-The minimum experimental chain now includes actual SFT, paired policy comparison, retrieval comparison, verification/recovery ablations and CLI traces. Keep Fixed as the reliable demonstration policy; raw SFT remains an opt-in experiment. Larger independent language sets, better learned policies and public-release packaging can follow. M2's original RQ-VAE quality goal remains unmet; the usable tokenizer is explicitly an **RQ-KMeans baseline**. This checkpoint is not a production-ready learned recommender.
+The minimum experimental chain now includes actual SFT, paired policy comparison, retrieval comparison, verification/recovery ablations and CLI traces. Keep Fixed as the reliable demonstration policy; raw SFT remains an opt-in experiment. Larger independent language sets, better learned policies and public-release packaging can follow. M2's stabilized learned tokenizer now meets its minimum noncollapse gates, but the existing M3/delivery runtime still uses the separately named **RQ-KMeans baseline**. New RQ-VAE codes have not been evaluated for next-item retrieval. This checkpoint is not a production-ready learned recommender.
 
 ## Current development — guarded model runtime
 
@@ -143,7 +143,7 @@ For M1, `evaluate_dense.py` reports popularity and dense Recall@5/10/20 and NDCG
 
 The primary full-eligible-user test run (8,151 users, 35,422 interactions, full 112,590-item catalog, BGE small English v1.5) produced Recall@20 of **0.006625 Popularity** and **0.036560 Dense**; NDCG@20 was **0.002784** and **0.021247** respectively. These are offline next-review-item results. See [docs/results_m1_full.md](docs/results_m1_full.md) for both splits, all K values, hashes, exact model revision, latency scope and limitations. The separate 5,000-user development result is in [docs/results_m1.md](docs/results_m1.md).
 
-## M2 Semantic ID training (in progress)
+## M2 Semantic ID training (full tokenizer gates passed)
 
 `scripts/train_rqvae.py` reads the saved M1 item embeddings, splits items by a fixed seed for reconstruction training/validation, trains a residual-quantized autoencoder, selects the checkpoint by validation reconstruction MSE, and saves learned codebooks, an item-to-token mapping, usage and collision statistics. A code maps to **all** colliding catalog items; it is not silently resolved using held-out targets.
 
@@ -153,7 +153,7 @@ The CPU smoke command below trains only 128 items for two epochs and is a softwa
 python scripts/train_rqvae.py --smoke-test --max-items 128 --epochs 2 --batch-size 32 --hidden-dim 64 --latent-dim 16 --num-levels 2 --codebook-size 16 --device cpu --output-dir outputs/m2_cpu_smoke_new
 ```
 
-The later full-catalog RQ-VAE run confirmed severe codebook collapse despite a valid checkpoint. A separate PCA-whitened residual MiniBatch K-Means tokenizer was therefore built and trained as an explicitly named baseline, not presented as a repaired RQ-VAE. Its 97,231 unique codes still leave 24,794 products in collision groups; downstream retrieval must handle those groups. Both full runs, their equal item split, measured reconstruction/usage/collision metrics and limitations are in [docs/results_m2.md](docs/results_m2.md). No M2 next-item recommendation metric is claimed.
+The original full-catalog RQ-VAE confirmed severe collapse despite a valid checkpoint. A separate PCA-whitened residual MiniBatch K-Means baseline yielded 97,231 unique codes and 24,794 colliding products. The 2026-10-09 approved stabilized neural RQ-VAE now yields 93,350 unique codes and 30,055 colliding products, with both predeclared quality gates passed and full-catalog reload/encoding verified. Its reconstruction improves, but its collision count is worse than K-Means; no overall superiority or next-item gain is claimed. All three runs share the exact input and item split and remain separately preserved in [docs/results_m2.md](docs/results_m2.md). Returned new artifacts: `outputs/m2_rqvae_stable_full_server/m2_rqvae_stable_full/`; do not substitute this map into the old M3 checkpoint.
 
 ## M3 Generative Retrieval
 

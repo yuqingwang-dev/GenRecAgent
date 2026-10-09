@@ -1,6 +1,6 @@
 # Requirement-by-requirement acceptance audit — 2026-10-07
 
-This preserves the original-scope audit taken on 2026-10-07, before recovery-training approval. The earlier findings and confirmation gates below are historical. On 2026-10-08 the user explicitly approved the proposed run; its real training, fresh paired test, checksummed return and independent regrading completed. [Recovery evidence](recovery_v3_plan.md) records the current state. Neither this update nor model task success claims repaired RQ-VAE quality, strong learned recommendation relevance or production readiness.
+This preserves the original-scope audit taken on 2026-10-07, before recovery-training approval. The earlier findings and confirmation gates below are historical. On 2026-10-08 the user explicitly approved the proposed run; its real training, fresh paired test, checksummed return and independent regrading completed. [Recovery evidence](recovery_v3_plan.md) records that outcome. Subsequently, the separately approved 2026-10-09 stabilized full RQ-VAE passed its predeclared minimum tokenizer gates and full-catalog independent audit; [M2 evidence](results_m2.md) supersedes the outstanding-tokenizer-quality status below without changing the original collapsed result. New codes are not yet used by M3. None of these results establishes strong learned recommendation relevance or production readiness.
 
 ## Classification
 
