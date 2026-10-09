@@ -4,6 +4,8 @@ GenRecAgent is a research project for personalized e-commerce recommendation wit
 
 The mock agent is deterministic and local. Its catalog and trace are software checks, not recommendation benchmarks.
 
+M2 repair update (2026-10-09): a separately configured **learned PCA-warmstarted EMA RQ-VAE** is implemented and tested, while preserving the original collapsed model and the distinct RQ-KMeans baseline. The complete lab95 software suite now passes 181 tests. Small real CPU models re-encode with zero mismatches; the 4,096-item/3×256 smoke still misses the predeclared third-level perplexity cutoff. Full-catalog stabilized training is not yet run or accepted, and the current M3 token mapping is unchanged. See [the M2 repair evidence and proposed full run](docs/m2_training_plan.md).
+
 Latest development: full fixed-weight retrieval test is complete (8,151 users, zero source failures). The user approved recovery v3 training on 2026-10-08; the job completed with exit 0 and its checksummed artifacts are local in `outputs/tool_sft_recovery_v3_server`. All 112 LoRA tensors changed and remained finite. Full raw validation passed 70/72, with two step-budget failures retained; fresh raw test passed 72/72 with one rejected model call recovered. Independent grading checked all 288 validation/test executions. Read the [actual recovery run and limits](docs/recovery_v3_plan.md) and [original-scope audit](docs/acceptance_audit_2026_10_07.md). No controller success is counted as raw model capability.
 
 ## Start here — real-data delivery entry
