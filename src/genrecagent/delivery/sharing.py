@@ -70,7 +70,7 @@ def public_metrics(report: dict) -> dict:
         "avg_execution_latency_ms",
         "ablation",
     )
-    return {
+    snapshot = {
         key: report[key]
         for key in (
             "scope",
@@ -91,6 +91,21 @@ def public_metrics(report: dict) -> dict:
             for name, row in report["policy_heldout_synthetic_subset"].items()
         }
     }
+    snapshot["learned_chain"] = report.get("learned_chain")
+    recovery = report.get("recovery_v3")
+    snapshot["recovery_v3"] = None if recovery is None else {
+        "scope": recovery["scope"], "status": recovery["status"],
+        "selection": recovery["selection"], "adapter_update": recovery["adapter_update"],
+        "controller_used": recovery["controller_used"],
+        "training_seconds": recovery["training_seconds"],
+        "training_commit": recovery["training_commit"],
+        "source_sha256": recovery["source_sha256"],
+        "raw_results": {
+            name: {key: row["metrics"][key] for key in keys if key in row["metrics"]}
+            for name, row in recovery["raw_results"].items()
+        },
+    }
+    return snapshot
 
 
 def replay_payload(root: Path, demo_dir: Path, report: dict) -> dict:
@@ -154,11 +169,20 @@ def replay_payload(root: Path, demo_dir: Path, report: dict) -> dict:
         )
     if {row["name"] for row in scenarios} != set(descriptions):
         raise ValueError("All three recorded scenarios are required")
-    policies = report["policy_heldout_synthetic_subset"]
+    recovery = report.get("recovery_v3")
+    policies = (report["policy_heldout_synthetic_subset"] if recovery is None else {
+        "fixed": recovery["raw_results"]["fixed"]["metrics"],
+        "sft": recovery["raw_results"]["compact_sft"]["metrics"],
+    })
     return {
         "scope": "saved real-tool trace replay; not live inference, not a new benchmark",
         "catalog_items": report["catalog_items"],
         "users": report["users"],
+        "policy_protocol": "legacy_v2" if recovery is None else "recovery_v3",
+        "sft_validation_contracts": None if recovery is None else (
+            f"{recovery['raw_results']['validation_compact_sft']['metrics']['contract_pass']}/"
+            f"{recovery['raw_results']['validation_compact_sft']['metrics']['tasks']}"
+        ),
         "fixed_contracts": f"{policies['fixed']['contract_pass']}/{policies['fixed']['tasks']}",
         "sft_contracts": f"{policies['sft']['contract_pass']}/{policies['sft']['tasks']}",
         "sft_feasible_fills": (
@@ -235,7 +259,11 @@ def build_share_package(root: Path, output: Path, demo_dir: Path) -> dict:
         "No weights, prepared data, cache, credentials, raw user histories "
         "or Git history are included. "
         "Use run_project.py check to identify missing artifacts before live inference.\n\n"
-        "Fixed is the demo default. Raw SFT: 4/12 synthetic contracts, only 1/9 feasible fills.\n\n"
+        "Fixed is the archived demo default, not a model-policy result. "
+        f"Raw SFT ({payload['policy_protocol']}): {payload['sft_contracts']} synthetic test "
+        f"contracts, {payload['sft_feasible_fills']} feasible fills. "
+        f"Raw validation: {payload['sft_validation_contracts'] or 'see historical report'}. "
+        "These supplied normalized-state tasks do not establish broad planning ability.\n\n"
         "This is a local source/evidence snapshot, NOT an approval to publicly publish. "
         "Full Git history and third-party redistribution terms require separate review. "
         "Environment locations in bundled copies use placeholders; "

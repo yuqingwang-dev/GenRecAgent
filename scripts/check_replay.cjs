@@ -31,10 +31,16 @@ const context = vm.createContext({
 });
 vm.runInContext(scripts[0][1], context, { timeout: 1000 });
 assert.equal(get("tabs").children.length, 3);
-assert.match(get("notice").textContent, /4\/12/);
-assert.match(get("notice").textContent, /1\/9/);
+const payload = JSON.parse(scripts[0][1].match(/const data = (.*);/)[1]);
+assert.ok(get("notice").textContent.includes(payload.sft_contracts));
+assert.ok(get("notice").textContent.includes(payload.sft_feasible_fills));
+if (payload.policy_protocol === "recovery_v3") {
+  assert.ok(get("notice").textContent.includes(payload.sft_validation_contracts));
+  assert.match(get("notice").textContent, /规范化/);
+}
 const outcomes = [];
-for (const [tab, steps, products] of [[0, 7, 5], [1, 6, 5], [2, 2, 0]]) {
+for (const [tab, scenario] of payload.scenarios.entries()) {
+  const steps = scenario.steps.length, products = scenario.products.length;
   get("tabs").children[tab].click();
   assert.equal(get("counter").textContent, `0 / ${steps}`);
   assert.equal(get("products").children.filter(row => row.className === "product").length, 0);
@@ -53,7 +59,7 @@ for (const [tab, steps, products] of [[0, 7, 5], [1, 6, 5], [2, 2, 0]]) {
   }
   assert.equal(get("counter").textContent, `${steps} / ${steps}`);
   assert.equal(get("products").children.filter(row => row.className === "product").length, products);
-  if (tab === 2) assert.match(get("outcome").textContent, /澄清/);
+  if (scenario.name === "impossible") assert.match(get("outcome").textContent, /澄清/);
   get("reset").click();
   assert.equal(get("counter").textContent, `0 / ${steps}`);
   outcomes.push({ tab, steps, products, pause_and_reset: "passed" });

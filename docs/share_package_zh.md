@@ -4,15 +4,15 @@
 
 ## 生成
 
-确认源码变更已经审核并提交，且已有 `outputs/project_delivery/demo/` 的三种 Fixed 演示与正式实验记录，再运行：
+确认源码已审核提交，并已有本次三个 Fixed 真实演示与完整实验，再运行：
 
 ```powershell
 conda activate genrecagent
 $env:PYTHONNOUSERSITE = "1"
-python scripts/package_project.py
+python scripts/package_project.py --demo-dir outputs/final_delivery_20261012/demo --output-dir outputs/final_delivery_20261012/share
 ```
 
-程序要求干净的工作树，输出到新的 `outputs/share/` 时间戳目录，不覆盖旧包，也不启动训练或下载。
+需要干净工作树和全新输出。上述目录已存在时应换目录；省略输出则用时间戳目录。不会覆盖旧包、启动训练、下载或发布。
 
 ## 交付文件
 
@@ -23,14 +23,14 @@ python scripts/package_project.py
 
 解压后先看 `START_HERE.md`。简历草稿在 `docs/resume_project_zh.md`，正式结果表在 `evidence/results.md`。
 
-HTML 是已保存真实工具执行结果的动画回放，不是实时模型推理，不是 MP4 录屏，也不是新的实验。回放的 Fixed 成功演示不能替代正式模型对照；SFT 仍是 4/12，只有一次填满可行推荐。价格是离线 metadata，不是实时价格。
+HTML 只回放 Fixed 真实归档，不是实时推理、MP4 或新实验。正式结果区单独展示 v3 原始 SFT：合成测试 72/72、验证 70/72，历史 v2 的 4/12 保存在独立章节。报告还包含新 M2/M3，不能把 Fixed 回放算作模型自主能力。价格来自离线 metadata。
 
 ## 本次验证范围
 
-Python 侧验证凭据扫描、路径脱敏和 script 注入防护；生成 ZIP 后逐项核对文件哈希与排除目录。页面以独立 Edge headless 配置做过初始渲染检查，不操作用户已有浏览器窗口。交互逻辑可用本机已有 Node 做开发测试：
+Python 侧检查凭据、路径、指纹和 script 注入；生成 ZIP 后逐项核对哈希与排除目录。页面交互可用本机 Node 做开发测试，不操作用户已有浏览器窗口：
 
 ```powershell
-node scripts/check_replay.cjs outputs/project_share/demo_replay.html
+node scripts/check_replay.cjs outputs/final_delivery_20261012/share/demo_replay.html
 ```
 
 测试执行页面原有 JavaScript，验证场景切换、下一步、播放、暂停、重置以及结束前不展示最终商品。该测试使用轻量模拟 DOM，不冒充真实鼠标操作或自动浏览器交互。查看实际页面时直接双击生成的 HTML。

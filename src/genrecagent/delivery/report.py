@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from genrecagent.delivery.learned_report import build_learned_report
 from genrecagent.delivery.readiness import DEFAULT_ADAPTER, sha256
 from genrecagent.delivery.recovery_report import RECOVERY_BASE, build_recovery_report
 
@@ -80,6 +81,11 @@ def build_report(root: Path) -> dict:
             }
         )
     recovery = build_recovery_report(root) if (root / RECOVERY_BASE).exists() else None
+    learned = build_learned_report(root, catalog_items=items, users=users)
+    if learned is not None:
+        sources.update(learned["source_sha256"])
+        if learned["generative"] is not None:
+            retrieval_test["transformer_rqvae_stable"] = learned["generative"]["test"]
     return {
         "scope": "aggregation of frozen runs; no new training or benchmark evaluation",
         "users": users,
@@ -92,6 +98,7 @@ def build_report(root: Path) -> dict:
         "policy_heldout_synthetic_subset": policies,
         "sft_training": training,
         "recovery_v3": recovery,
+        "learned_chain": learned,
         "training_code_commit": config["git_commit_at_start"],
         "training_seconds": config["elapsed_seconds"],
         "source_metric_sha256": sources,
@@ -111,6 +118,10 @@ def build_report(root: Path) -> dict:
             "the environment supplies observable flags and a precomputed static eligibility count.",
             "Raw Compact Prompt is an untuned schema-following baseline; "
             "this does not establish superiority over an optimized prompted agent.",
+            "Learned RQ-VAE token quality is not next-item relevance; new Transformer "
+            "results remain separate from the old model/fusion and do not switch defaults.",
+            "The existing retrieval test was already observed for historical baselines; "
+            "one seed and few hits do not establish a robust generative gain.",
         ],
     }
 
@@ -130,6 +141,41 @@ def render_report(data: dict) -> str:
     ]
     for name, row in data["retrieval_test"].items():
         lines.append(f"| {name} | {row['Recall@20']:.6f} | {row['NDCG@20']:.6f} |")
+    learned = data.get("learned_chain")
+    if learned is not None:
+        token = learned["tokenizer"]
+        lines.extend([
+            "", "## Learned Semantic ID — verified full RQ-VAE", "",
+            f"{token['items']:,} items; variant `{token['variant']}`; "
+            f"selected epoch {token['best_epoch']}; validation reconstruction MSE "
+            f"{token['validation_reconstruction_mse']:.8f}.", "",
+            f"Used codes: {[row['used_codes'] for row in token['codebook_usage_by_level']]}; "
+            f"unique codes {token['collisions']['unique_code_count']:,}; "
+            f"colliding items {token['collisions']['colliding_item_count']:,}. "
+            "Both frozen tokenizer quality gates pass; collisions remain explicit.", "",
+            "The original collapsed RQ-VAE and separately named RQ-KMeans baseline "
+            "are preserved, not relabeled as this learned model.",
+        ])
+        generator = learned["generative"]
+        if generator is not None:
+            lines.extend([
+                "", "## New RQ-VAE-coded Transformer — validation, then frozen test", "",
+                f"{generator['train_examples']:,} training prefixes; "
+                f"{generator['parameters']:,} parameters; "
+                f"selected epoch {generator['best_epoch']}.",
+                "", "| Split | Users | Recall@20 | NDCG@20 |",
+                "| --- | ---: | ---: | ---: |",
+            ])
+            for split in ("validation", "test"):
+                row = generator[split]
+                lines.append(f"| {split} | {row['users']} | {row['Recall@20']:.6f} | "
+                             f"{row['NDCG@20']:.6f} |")
+            lines.extend([
+                "", "All saved user candidate ranks were CPU-regraded. "
+                "The new model is not part of historical fusion/SFT comparisons. "
+                "Mixed small changes do not establish overall superiority; "
+                "old runtime defaults remain.",
+            ])
     lines.extend(
         [
             "",
@@ -161,7 +207,7 @@ def render_report(data: dict) -> str:
     lines.extend(
         [
             "",
-            "## Actual SFT",
+            "## Historical v2 SFT — separate small-task protocol",
             "",
             f"{training['train_actions']} train actions, {training['epochs']} epoch; "
             f"validation action NLL {training['initial_validation_nll']:.6f} -> "
@@ -207,6 +253,11 @@ def render_report(data: dict) -> str:
                 "",
                 "This protocol differs from v2; do not merge their rates "
                 "or infer a cross-protocol gain.",
+                "",
+                f"Full raw validation: "
+                f"{recovery['raw_results']['validation_compact_sft']['metrics']['contract_pass']}/"
+                f"{recovery['raw_results']['validation_compact_sft']['metrics']['tasks']}. "
+                "Fresh synthetic test success is not a universal reliability claim.",
                 "",
             ]
         )

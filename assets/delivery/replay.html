@@ -70,8 +70,8 @@ data.scenarios.forEach((row,i)=>{const button=element("button",labels[row.name])
 byId("play").addEventListener("click",()=>{if(timer!==null){stop();return;}if(index===data.scenarios[selected].steps.length)index=0;byId("play").textContent="暂停";timer=setTimeout(tick,0);});
 byId("next").addEventListener("click",()=>{stop();advance();});byId("reset").addEventListener("click",()=>{stop();index=0;render();});
 byId("speed").addEventListener("change",()=>{if(timer!==null){clearTimeout(timer);timer=setTimeout(tick,Number(byId("speed").value));}});
-[[data.catalog_items.toLocaleString(),"商品目录"],[data.users.toLocaleString(),"推荐评测用户"],[data.fixed_contracts,"Fixed · 合成任务"],[data.sft_contracts,"SFT · 合成任务"]].forEach(([value,label])=>{const card=element("div","","stat");card.append(element("b",value),element("small",label));byId("stats").append(card);});
-byId("notice").textContent="默认演示是确定性 Fixed 策略。正式小样本 SFT 通过 "+data.sft_contracts+"，实际填满 "+data.sft_feasible_fills+" 个可行推荐；另有 "+data.sft_correct_clarifications+" 次正确澄清。不能把演示通过率当作模型自主规划能力。";
+[[data.catalog_items.toLocaleString(),"商品目录"],[data.users.toLocaleString(),"推荐评测用户"],[data.fixed_contracts,"Fixed · 合成测试"],[data.sft_contracts,(data.policy_protocol==="recovery_v3"?"原始 Compact SFT v3":"历史 SFT v2")+" · 合成测试"]].forEach(([value,label])=>{const card=element("div","","stat");card.append(element("b",value),element("small",label));byId("stats").append(card);});
+byId("notice").textContent="回放始终是 Fixed 真实归档。"+(data.policy_protocol==="recovery_v3"?"独立的原始 Compact SFT v3 测试":"历史小样本 SFT 测试")+"通过 "+data.sft_contracts+"，填满 "+data.sft_feasible_fills+" 个可行推荐；另有 "+data.sft_correct_clarifications+" 次正确澄清。"+(data.sft_validation_contracts?"原始验证通过 "+data.sft_validation_contracts+"，失败轨迹保留。":"")+"任务提供规范化状态与约束；不代表广泛规划、推荐相关性或线上收益。";
 render();
 </script>
 </body></html>
